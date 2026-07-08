@@ -30,3 +30,9 @@ def test_apply_thermal() -> None:
     rgb = np.stack([rgb, rgb, rgb], axis=-1)
     out = apply_signature(rgb, look)
     assert not np.allclose(out, rgb)
+
+
+def test_arctic_glass_exists() -> None:
+    from auraforge_engine.registry import get_look
+    assert get_look("sig_arctic_glass") is not None
+    assert get_look("sig_paper_print") is not None

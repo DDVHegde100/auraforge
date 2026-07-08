@@ -1,0 +1,39 @@
+[
+  {
+    "id": "sig_arctic_glass",
+    "name": "arctic glass",
+    "kind": "signature",
+    "tags": ["cool", "landscape", "clarity"],
+    "stack": {
+      "develop": {"warmth": -0.18, "clarity": 0.14, "contrast": 0.08},
+      "split_tone": {"strength": 0.14, "shadow_rgb": [0.02, 0.08, 0.14], "highlight_rgb": [0.88, 0.96, 1.0]},
+      "multiscale_detail": {"strength": 0.18}
+    },
+    "notes": "cold crystalline teal ice"
+  },
+  {
+    "id": "sig_biolume",
+    "name": "biolume",
+    "kind": "signature",
+    "tags": ["experimental", "fantasy", "teal"],
+    "experimental": true,
+    "stack": {
+      "split_tone": {"strength": 0.20, "shadow_rgb": [0.02, 0.10, 0.14], "highlight_rgb": [0.45, 0.95, 0.92]},
+      "highlight_bloom": {"intensity": 0.25, "threshold": 0.50},
+      "channel_offset_fringe": {"strength": 0.08, "blue_offset": [0, 2]}
+    },
+    "notes": "underwater cyan emissive lights"
+  },
+  {
+    "id": "sig_paper_print",
+    "name": "paper print",
+    "kind": "signature",
+    "tags": ["matte", "still", "film"],
+    "stack": {
+      "develop": {"contrast": -0.03, "highlight_recovery": 0.10},
+      "split_tone": {"strength": 0.10, "shadow_rgb": [0.06, 0.05, 0.04], "highlight_rgb": [0.96, 0.94, 0.88]},
+      "film_grain": {"amount": 0.05, "size": 1.1, "seed": 17}
+    },
+    "notes": "matte gallery cream paper tone"
+  }
+]
