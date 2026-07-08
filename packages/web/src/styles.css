@@ -536,3 +536,87 @@ h1 {
   font-size: 0.82rem;
   font-family: "IBM Plex Mono", ui-monospace, monospace;
 }
+
+.toolbar-row {
+  margin-top: 0.75rem;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.tool-btn {
+  border: 1px solid #3a414d;
+  background: transparent;
+  color: #b8bdc6;
+  padding: 0.35rem 0.75rem;
+  border-radius: 3px;
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+}
+
+.tool-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.tool-btn.primary {
+  border-color: #c4a574;
+  color: #c4a574;
+}
+
+.export-select {
+  background: #111318;
+  color: #d8dce3;
+  border: 1px solid #3a414d;
+  border-radius: 3px;
+  padding: 0.35rem 0.5rem;
+  font-size: 0.78rem;
+}
+
+.hidden-canvas {
+  display: none;
+}
+
+.debug-panel {
+  margin-top: 1.25rem;
+  padding: 0.75rem 1rem;
+  border: 1px solid #2a3038;
+  border-radius: 4px;
+  background: rgba(0, 0, 0, 0.2);
+}
+
+.debug-panel summary {
+  cursor: pointer;
+  color: #c4a574;
+  font-size: 0.85rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.debug-grid {
+  margin: 0.75rem 0 0;
+  display: grid;
+  gap: 0.35rem 1rem;
+  grid-template-columns: 1fr 1fr;
+}
+
+.debug-row {
+  display: contents;
+}
+
+.debug-row dt {
+  margin: 0;
+  color: #8a8f98;
+  font-size: 0.78rem;
+  text-transform: lowercase;
+}
+
+.debug-row dd {
+  margin: 0;
+  color: #d8dce3;
+  font-size: 0.82rem;
+  font-family: "IBM Plex Mono", ui-monospace, monospace;
+}

@@ -81,6 +81,8 @@ export default function App() {
   const [beforeUrl, setBeforeUrl] = useState<string | null>(null);
   const [afterUrl, setAfterUrl] = useState<string | null>(null);
   const [scrub, setScrub] = useState(50);
+  const [exportFormat, setExportFormat] = useState<ExportFormat>("jpeg");
+  const [history, setHistory] = useState<HistorySnap[]>([]);
   const beforeRef = useRef<HTMLCanvasElement | null>(null);
   const fileRef = useRef<File | null>(null);
   const debounceRef = useRef<number | null>(null);
@@ -112,10 +114,15 @@ export default function App() {
     void loadSignatures();
   }, [loadGrades, loadSignatures]);
 
+  const pushHistory = useCallback((snap: HistorySnap) => {
+    setHistory((prev) => [...prev.slice(-19), snap]);
+  }, []);
+
   const runEnhance = useCallback(
     async (
       file: File,
       snap: HistorySnap,
+      opts?: { skipHistory?: boolean },
     ) => {
       setBusy(true);
       try {
@@ -146,6 +153,7 @@ export default function App() {
         setStatus(
           `enhance ${snap.strength}% · ${snap.mode} · sig ${sig}${clamped}`,
         );
+        if (!opts?.skipHistory) pushHistory(snap);
       } catch (err) {
         setStatus(err instanceof Error ? err.message : "enhance failed");
       } finally {
@@ -184,6 +192,7 @@ export default function App() {
       setBusy(true);
       setFileName(file.name);
       fileRef.current = file;
+      setHistory([]);
       try {
         const body = new FormData();
         body.append("file", file);
@@ -207,6 +216,54 @@ export default function App() {
     },
     [currentSnap, runEnhance],
   );
+
+  const undo = useCallback(() => {
+    if (history.length < 2) return;
+    const prev = history[history.length - 2];
+    setHistory((h) => h.slice(0, -1));
+    setStrength(prev.strength);
+    setMode(prev.mode);
+    setSelectedGrade(prev.gradeId);
+    setSelectedSignature(prev.signatureId);
+    setShowMasks(prev.showMasks);
+    setProSafe(prev.proSafe);
+    const file = fileRef.current;
+    if (file) void runEnhance(file, prev, { skipHistory: true });
+  }, [history, runEnhance]);
+
+  const exportImage = useCallback(async () => {
+    const file = fileRef.current;
+    if (!file) return;
+    setBusy(true);
+    try {
+      const snap = currentSnap();
+      const body = new FormData();
+      body.append("file", file);
+      body.append("strength", String(snap.strength));
+      body.append("mode", snap.mode);
+      body.append("fmt", snap.showMasks ? "jpeg" : exportFormat);
+      body.append("pro_safe", snap.proSafe ? "true" : "false");
+      if (snap.gradeId) body.append("grade_id", snap.gradeId);
+      if (snap.signatureId) body.append("signature_id", snap.signatureId);
+      const res = await fetch("/api/process/export", { method: "POST", body });
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.detail || "export failed");
+      }
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = exportFormat === "tiff" ? "auraforge.tif" : "auraforge.jpg";
+      a.click();
+      URL.revokeObjectURL(url);
+      setStatus(`exported ${exportFormat}`);
+    } catch (err) {
+      setStatus(err instanceof Error ? err.message : "export failed");
+    } finally {
+      setBusy(false);
+    }
+  }, [currentSnap, exportFormat]);
 
   const onDrop = (e: React.DragEvent) => {
     e.preventDefault();
@@ -367,6 +424,11 @@ export default function App() {
             />
             show mask debug overlay
           </label>
+          <div className="toolbar-row">
+            <button type="button" className="tool-btn" disabled={history.length < 2} onClick={undo}>
+              undo
+            </button>
+          </div>
         </section>
       )}
 
