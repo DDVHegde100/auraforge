@@ -1,6 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
 type AnalysisSummary = Record<string, string | number | boolean>;
+type EnhanceMode = "natural" | "portrait" | "land" | "food" | "glow";
+
+const MODES: EnhanceMode[] = ["natural", "portrait", "land", "food", "glow"];
 
 async function paintPreview(canvas: HTMLCanvasElement, dataUrl: string) {
   const img = new Image();
@@ -49,7 +52,12 @@ export default function App() {
   const [dragOver, setDragOver] = useState(false);
   const [hasImage, setHasImage] = useState(false);
   const [analysis, setAnalysis] = useState<AnalysisSummary | null>(null);
-  const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const [strength, setStrength] = useState(50);
+  const [mode, setMode] = useState<EnhanceMode>("natural");
+  const beforeRef = useRef<HTMLCanvasElement | null>(null);
+  const afterRef = useRef<HTMLCanvasElement | null>(null);
+  const fileRef = useRef<File | null>(null);
+  const debounceRef = useRef<number | null>(null);
 
   useEffect(() => {
     Promise.all([
@@ -63,32 +71,77 @@ export default function App() {
       .catch(() => setStatus("api offline — run ./dev.sh"));
   }, []);
 
-  const openFile = useCallback(async (file: File) => {
-    setBusy(true);
-    setFileName(file.name);
-    try {
-      const body = new FormData();
-      body.append("file", file);
-      const res = await fetch("/api/process/preview", { method: "POST", body });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.detail || "preview failed");
-      const canvas = canvasRef.current;
-      if (canvas) {
-        await paintPreview(canvas, data.preview);
-        setHasImage(true);
+  const runEnhance = useCallback(
+    async (file: File, nextStrength: number, nextMode: EnhanceMode) => {
+      setBusy(true);
+      try {
+        const body = new FormData();
+        body.append("file", file);
+        body.append("strength", String(nextStrength));
+        body.append("mode", nextMode);
+        const res = await fetch("/api/process/enhance", { method: "POST", body });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.detail || "enhance failed");
+        const after = afterRef.current;
+        if (after) {
+          await paintPreview(after, data.preview);
+          setHasImage(true);
+        }
+        setAnalysis(data.analysis ?? null);
+        const exp = data.analysis?.exposure_class ?? "?";
+        const content = data.analysis?.content_class ?? "?";
+        setStatus(
+          `enhance ${nextStrength}% · ${nextMode} · ${content} · ${exp}`,
+        );
+      } catch (err) {
+        setStatus(err instanceof Error ? err.message : "enhance failed");
+      } finally {
+        setBusy(false);
       }
-      setAnalysis(data.analysis ?? null);
-      const exp = data.analysis?.exposure_class ?? "?";
-      const content = data.analysis?.content_class ?? "?";
-      setStatus(`before ${data.width}×${data.height} · ${content} · ${exp}`);
-    } catch (err) {
-      setStatus(err instanceof Error ? err.message : "preview failed");
-      setHasImage(false);
-      setAnalysis(null);
-    } finally {
-      setBusy(false);
-    }
-  }, []);
+    },
+    [],
+  );
+
+  const scheduleEnhance = useCallback(
+    (nextStrength: number, nextMode: EnhanceMode) => {
+      const file = fileRef.current;
+      if (!file) return;
+      if (debounceRef.current) window.clearTimeout(debounceRef.current);
+      debounceRef.current = window.setTimeout(() => {
+        void runEnhance(file, nextStrength, nextMode);
+      }, 280);
+    },
+    [runEnhance],
+  );
+
+  const openFile = useCallback(
+    async (file: File) => {
+      setBusy(true);
+      setFileName(file.name);
+      fileRef.current = file;
+      try {
+        const body = new FormData();
+        body.append("file", file);
+        const res = await fetch("/api/process/preview", { method: "POST", body });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.detail || "preview failed");
+        const before = beforeRef.current;
+        if (before) {
+          await paintPreview(before, data.preview);
+          setHasImage(true);
+        }
+        setAnalysis(data.analysis ?? null);
+        await runEnhance(file, strength, mode);
+      } catch (err) {
+        setStatus(err instanceof Error ? err.message : "preview failed");
+        setHasImage(false);
+        setAnalysis(null);
+      } finally {
+        setBusy(false);
+      }
+    },
+    [mode, runEnhance, strength],
+  );
 
   const onDrop = (e: React.DragEvent) => {
     e.preventDefault();
@@ -132,9 +185,50 @@ export default function App() {
 
       {fileName && <p className="muted">{fileName}</p>}
 
-      <div className={`canvas-wrap ${hasImage ? "show" : ""}`}>
-        <p className="label">before</p>
-        <canvas ref={canvasRef} className="before-canvas" />
+      {hasImage && (
+        <section className="enhance-controls">
+          <label className="slider-label">
+            ai enhance
+            <input
+              type="range"
+              min={0}
+              max={100}
+              value={strength}
+              onChange={(e) => {
+                const v = Number(e.target.value);
+                setStrength(v);
+                scheduleEnhance(v, mode);
+              }}
+            />
+            <span className="slider-value">{strength}</span>
+          </label>
+          <div className="mode-row">
+            {MODES.map((m) => (
+              <button
+                key={m}
+                type="button"
+                className={m === mode ? "mode active" : "mode"}
+                onClick={() => {
+                  setMode(m);
+                  scheduleEnhance(strength, m);
+                }}
+              >
+                {m}
+              </button>
+            ))}
+          </div>
+        </section>
+      )}
+
+      <div className={`canvas-row ${hasImage ? "show" : ""}`}>
+        <div className="canvas-wrap">
+          <p className="label">before</p>
+          <canvas ref={beforeRef} className="preview-canvas" />
+        </div>
+        <div className="canvas-wrap">
+          <p className="label">after</p>
+          <canvas ref={afterRef} className="preview-canvas" />
+        </div>
       </div>
 
       <DebugPanel data={analysis} />
