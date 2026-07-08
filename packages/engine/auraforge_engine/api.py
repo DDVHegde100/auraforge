@@ -121,6 +121,7 @@ async def process_enhance(
     strength: float = Form(50.0),
     mode: str = Form("natural"),
     max_size: int = Form(1600),
+    use_onnx_sky: bool = Form(False),
 ) -> dict[str, Any]:
     suffix = Path(file.filename or "upload.jpg").suffix or ".jpg"
     try:
@@ -129,7 +130,12 @@ async def process_enhance(
             tmp.write(data)
             tmp.flush()
             rgb = load_rgb(tmp.name)
-            enhanced, meta = run_enhance(rgb, strength=strength, mode=mode)
+            enhanced, meta = run_enhance(
+                rgb,
+                strength=strength,
+                mode=mode,
+                use_onnx_sky=use_onnx_sky,
+            )
             preview = downscale(enhanced, max_size=max_size)
             url = rgb_to_data_url(preview)
         h, w = preview.shape[:2]

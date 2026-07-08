@@ -78,3 +78,18 @@ def test_resolve_sky_mask_heuristic_fallback() -> None:
     mask, source = resolve_sky_mask(rgb, use_onnx=True)
     assert source == "heuristic"
     assert mask.shape[:2] == rgb.shape[:2]
+
+
+from auraforge_engine.analysis import analyze
+from auraforge_engine.enhance.pipeline import apply_recipe
+from auraforge_engine.enhance.recipe import DevelopRecipe
+from auraforge_engine.masks import apply_mask_stack
+
+
+def test_apply_mask_stack_on_landscape() -> None:
+    rgb = _sky_rgb()
+    analysis = analyze(rgb)
+    base = apply_recipe(rgb, DevelopRecipe(contrast=0.12, dehaze=0.08))
+    out, meta = apply_mask_stack(rgb, base, analysis)
+    assert out.shape == rgb.shape
+    assert meta["sky_applied"] is True
