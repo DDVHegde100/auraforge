@@ -19,3 +19,13 @@ def test_apply_grade_with_inline_look() -> None:
     out = apply_grade(rgb, look)
     assert out.shape == rgb.shape
     assert not np.allclose(out, rgb)
+
+
+from auraforge_engine.grades import load_grades_by_tag
+from auraforge_engine.registry import get_look
+
+
+def test_portrait_grades_1_5() -> None:
+    assert get_look("grade_portrait_natural") is not None
+    assert get_look("grade_portrait_matte_film") is not None
+    assert len(load_grades_by_tag("portrait")) >= 5

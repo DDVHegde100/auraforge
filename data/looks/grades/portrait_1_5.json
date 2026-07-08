@@ -1,0 +1,66 @@
+[
+  {
+    "id": "grade_portrait_natural",
+    "name": "natural skin",
+    "kind": "grade",
+    "tags": ["portrait", "neutral"],
+    "skin_protect": true,
+    "stack": {
+      "develop": {"vibrance": 0.04, "contrast": 0.03, "shadow_lift": 0.04},
+      "split_tone": {"strength": 0.06, "shadow_rgb": [0.02, 0.03, 0.06], "highlight_rgb": [1.0, 0.98, 0.95]}
+    },
+    "notes": "clean faithful portrait base"
+  },
+  {
+    "id": "grade_portrait_soft_peach",
+    "name": "soft peach",
+    "kind": "grade",
+    "tags": ["portrait", "beauty", "wedding"],
+    "skin_protect": true,
+    "stack": {
+      "develop": {"warmth": 0.18, "vibrance": 0.08, "shadow_lift": 0.08},
+      "soft_haze": {"lift": 0.03, "desaturate": 0.06, "warmth": 0.08},
+      "split_tone": {"strength": 0.12, "highlight_rgb": [1.0, 0.88, 0.78]}
+    },
+    "notes": "beauty / bridal soft warmth"
+  },
+  {
+    "id": "grade_portrait_cool_editorial",
+    "name": "cool editorial",
+    "kind": "grade",
+    "tags": ["portrait", "editorial"],
+    "skin_protect": true,
+    "stack": {
+      "develop": {"contrast": 0.10, "clarity": 0.08, "warmth": -0.12},
+      "split_tone": {"strength": 0.14, "shadow_rgb": [0.02, 0.05, 0.12], "balance": -0.1},
+      "multiscale_detail": {"strength": 0.10}
+    },
+    "notes": "magazine cool contrast"
+  },
+  {
+    "id": "grade_portrait_warm_honey",
+    "name": "warm honey",
+    "kind": "grade",
+    "tags": ["portrait", "lifestyle"],
+    "skin_protect": true,
+    "stack": {
+      "develop": {"warmth": 0.22, "saturation": 0.06, "vibrance": 0.10},
+      "highlight_bloom": {"intensity": 0.12, "threshold": 0.78},
+      "split_tone": {"strength": 0.10, "highlight_rgb": [1.0, 0.85, 0.62]}
+    },
+    "notes": "lifestyle golden warmth"
+  },
+  {
+    "id": "grade_portrait_matte_film",
+    "name": "matte film",
+    "kind": "grade",
+    "tags": ["portrait", "film"],
+    "skin_protect": true,
+    "stack": {
+      "develop": {"contrast": -0.04, "shadow_lift": 0.10, "highlight_recovery": 0.12},
+      "soft_haze": {"lift": 0.02, "desaturate": 0.10},
+      "film_grain": {"amount": 0.05, "size": 1.2, "seed": 11}
+    },
+    "notes": "faded matte portrait film"
+  }
+]
