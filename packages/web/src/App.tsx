@@ -66,6 +66,8 @@ export default function App() {
   const [grades, setGrades] = useState<GradeLook[]>([]);
   const [gradeTag, setGradeTag] = useState("all");
   const [selectedGrade, setSelectedGrade] = useState<string | null>(null);
+  const [selectedSignature, setSelectedSignature] = useState<string | null>(null);
+  const [proSafe, setProSafe] = useState(true);
   const beforeRef = useRef<HTMLCanvasElement | null>(null);
   const afterRef = useRef<HTMLCanvasElement | null>(null);
   const fileRef = useRef<File | null>(null);
@@ -115,6 +117,7 @@ export default function App() {
       nextMode: EnhanceMode,
       masks: boolean,
       gradeId: string | null,
+      signatureId: string | null,
     ) => {
       setBusy(true);
       try {
@@ -127,7 +130,9 @@ export default function App() {
         body.append("file", file);
         body.append("strength", String(nextStrength));
         body.append("mode", nextMode);
+        body.append("pro_safe", proSafe ? "true" : "false");
         if (gradeId) body.append("grade_id", gradeId);
+        if (selectedSignature) body.append("signature_id", selectedSignature);
         const res = await fetch("/api/process/enhance", { method: "POST", body });
         const data = await res.json();
         if (!res.ok) throw new Error(data.detail || "enhance failed");
@@ -145,7 +150,7 @@ export default function App() {
         setBusy(false);
       }
     },
-    [loadMaskOverlay, paintAfter],
+    [loadMaskOverlay, paintAfter, proSafe, selectedSignature],
   );
 
   const scheduleEnhance = useCallback(
@@ -154,12 +159,13 @@ export default function App() {
       nextMode: EnhanceMode,
       masks: boolean,
       gradeId: string | null,
+      signatureId: string | null,
     ) => {
       const file = fileRef.current;
       if (!file) return;
       if (debounceRef.current) window.clearTimeout(debounceRef.current);
       debounceRef.current = window.setTimeout(() => {
-        void runEnhance(file, nextStrength, nextMode, masks, gradeId);
+        void runEnhance(file, nextStrength, nextMode, masks, gradeId, signatureId);
       }, 280);
     },
     [runEnhance],
@@ -182,7 +188,7 @@ export default function App() {
           setHasImage(true);
         }
         setAnalysis(data.analysis ?? null);
-        await runEnhance(file, strength, mode, showMasks, selectedGrade);
+        await runEnhance(file, strength, mode, showMasks, selectedGrade, selectedSignature);
       } catch (err) {
         setStatus(err instanceof Error ? err.message : "preview failed");
         setHasImage(false);
@@ -191,7 +197,7 @@ export default function App() {
         setBusy(false);
       }
     },
-    [mode, runEnhance, selectedGrade, showMasks, strength],
+    [mode, runEnhance, selectedGrade, selectedSignature, showMasks, strength],
   );
 
   const onDrop = (e: React.DragEvent) => {
@@ -329,6 +335,10 @@ export default function App() {
               }}
             />
             show mask debug overlay
+          </label>
+          <label className="mask-toggle">
+            <input type="checkbox" checked={proSafe} onChange={(e) => { setProSafe(e.target.checked); const f = fileRef.current; if (f) scheduleEnhance(strength, mode, showMasks, selectedGrade, selectedSignature); }} />
+            pro-safe clamp experimental sigs
           </label>
         </section>
       )}

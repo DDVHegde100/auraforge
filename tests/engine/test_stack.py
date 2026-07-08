@@ -23,6 +23,20 @@ def test_enhance_then_grade_order() -> None:
     assert not np.allclose(out, rgb)
 
 
+def test_signature_pro_safe_clamp_in_stack() -> None:
+    rgb = np.full((16, 16, 3), 0.4, dtype=np.float32)
+    _out, meta = run_enhance_with_look(
+        rgb,
+        strength=50.0,
+        mode="natural",
+        signature_id="sig_thermal_spectrum",
+        signature_strength=1.0,
+        pro_safe=True,
+    )
+    assert meta.get("signature_clamped") is True
+    assert meta["signature_strength"] == 0.60
+
+
 def test_enhance_only_when_no_grade() -> None:
     rgb = np.full((24, 24, 3), 0.35, dtype=np.float32)
     out, meta = run_enhance_with_look(rgb, strength=30.0, mode="natural")

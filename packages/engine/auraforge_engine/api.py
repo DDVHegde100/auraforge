@@ -150,6 +150,7 @@ async def process_enhance(
     signature_id: str = Form(""),
     max_size: int = Form(1600),
     use_onnx_sky: bool = Form(False),
+    pro_safe: bool = Form(True),
 ) -> dict[str, Any]:
     suffix = Path(file.filename or "upload.jpg").suffix or ".jpg"
     try:
@@ -165,6 +166,7 @@ async def process_enhance(
                 grade_id=grade_id or None,
                 signature_id=signature_id or None,
                 use_onnx_sky=use_onnx_sky,
+                pro_safe=pro_safe,
             )
             preview = downscale(enhanced, max_size=max_size)
             url = rgb_to_data_url(preview)

@@ -10,6 +10,7 @@ from auraforge_engine.enhance.run import run_enhance
 from auraforge_engine.grades.apply import apply_grade
 from auraforge_engine.registry import get_look
 from auraforge_engine.signatures.apply import apply_signature
+from auraforge_engine.signatures.safety import PRO_SAFE_MAX, clamp_signature_strength
 
 
 def run_enhance_with_look(
@@ -21,6 +22,7 @@ def run_enhance_with_look(
     signature_id: str | None = None,
     grade_strength: float = 1.0,
     signature_strength: float = 1.0,
+    pro_safe: bool = True,
     use_onnx_sky: bool = False,
 ) -> tuple[np.ndarray, dict[str, Any]]:
     """Order: AI enhance → grade → signature."""
@@ -39,8 +41,13 @@ def run_enhance_with_look(
         look = get_look(signature_id)
         if look is None or look.kind != "signature":
             raise ValueError(f"unknown signature '{signature_id}'")
-        out = apply_signature(out, look, strength=signature_strength)
+        sig_strength = clamp_signature_strength(look, signature_strength, pro_safe=pro_safe)
+        out = apply_signature(out, look, strength=sig_strength)
         meta["signature_id"] = signature_id
+        meta["signature_strength"] = sig_strength
+        meta["pro_safe"] = pro_safe
+        if look.experimental and pro_safe and signature_strength > PRO_SAFE_MAX:
+            meta["signature_clamped"] = True
         meta["stack_order"].append("signature")
 
     return out, meta
