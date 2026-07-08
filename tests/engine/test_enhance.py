@@ -36,3 +36,13 @@ def test_mix_strength_half() -> None:
     base = DevelopRecipe(contrast=0.2)
     mixed = mix_strength(base, 50.0)
     assert abs(mixed.contrast - 0.1) < 1e-6
+
+
+from auraforge_engine.enhance import apply_mode
+
+
+def test_portrait_mode_boosts_vignette() -> None:
+    base = DevelopRecipe(vignette=0.10, clarity=0.12)
+    out = apply_mode(base, "portrait")
+    assert out.vignette > base.vignette
+    assert out.clarity < base.clarity
