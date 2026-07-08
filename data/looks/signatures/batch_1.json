@@ -1,0 +1,41 @@
+[
+  {
+    "id": "sig_floating_light",
+    "name": "floating light",
+    "kind": "signature",
+    "tags": ["glow", "portrait", "light"],
+    "skin_protect": true,
+    "stack": {
+      "floating_light_gradient": {"intensity": 0.28, "warmth": 0.14, "angle_deg": 30},
+      "highlight_bloom": {"intensity": 0.32, "threshold": 0.68, "blur_sigma": 20},
+      "orton_glow": {"opacity": 0.38, "blur_sigma": 24}
+    },
+    "notes": "volumetric key on subject highlights"
+  },
+  {
+    "id": "sig_halo_dawn",
+    "name": "halo dawn",
+    "kind": "signature",
+    "tags": ["glow", "warm", "rim"],
+    "skin_protect": true,
+    "stack": {
+      "rim_light": {"intensity": 0.32, "tint": [1.0, 0.88, 0.62]},
+      "highlight_bloom": {"intensity": 0.28, "threshold": 0.62},
+      "split_tone": {"strength": 0.14, "highlight_rgb": [1.0, 0.82, 0.52]}
+    },
+    "notes": "golden rim at dawn"
+  },
+  {
+    "id": "sig_velvet_depth",
+    "name": "velvet depth",
+    "kind": "signature",
+    "tags": ["moody", "portrait", "vignette"],
+    "skin_protect": true,
+    "stack": {
+      "develop": {"shadow_lift": 0.10, "contrast": 0.06},
+      "split_tone": {"strength": 0.16, "shadow_rgb": [0.03, 0.04, 0.12], "balance": -0.12},
+      "vignette": {"strength": 0.28, "feather": 0.72}
+    },
+    "notes": "dark velvet edges subject lift"
+  }
+]

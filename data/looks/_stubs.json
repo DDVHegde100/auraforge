@@ -1,25 +1,5 @@
 [
   {
-    "id": "sig_floating_light",
-    "name": "floating light",
-    "kind": "signature",
-    "tags": ["glow", "portrait", "light"],
-    "experimental": false,
-    "skin_protect": true,
-    "stack": { "status": "stub", "intent": "volumetric highlight bloom + subject soft key" },
-    "notes": "see LOOKS.md"
-  },
-  {
-    "id": "sig_thermal_spectrum",
-    "name": "thermal",
-    "kind": "signature",
-    "tags": ["experimental", "false-color"],
-    "experimental": true,
-    "skin_protect": false,
-    "stack": { "status": "stub", "intent": "ironbow luminance map" },
-    "notes": "see LOOKS.md"
-  },
-  {
     "id": "enhance_natural",
     "name": "enhance natural",
     "kind": "enhance",
