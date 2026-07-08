@@ -66,3 +66,12 @@ def test_multiscale_detail_increases_variance() -> None:
     rgb[12:20, 12:20] = 0.25
     out = multiscale_detail(rgb, strength=0.25)
     assert float(out.std()) >= float(rgb.std())
+
+
+from auraforge_engine.effects import film_grain
+
+
+def test_film_grain_changes_pixels() -> None:
+    rgb = np.full((24, 24, 3), 0.5, dtype=np.float32)
+    out = film_grain(rgb, amount=0.12, seed=7)
+    assert not np.allclose(out, rgb)
