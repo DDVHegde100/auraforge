@@ -45,3 +45,13 @@ def test_floating_light_gradient_adds_glow() -> None:
     rgb = np.full((48, 64, 3), 0.25, dtype=np.float32)
     out = floating_light_gradient(rgb, intensity=0.3)
     assert float(out.mean()) > float(rgb.mean())
+
+
+from auraforge_engine.effects import rim_light
+
+
+def test_rim_light_adds_edge_glow() -> None:
+    rgb = np.zeros((32, 32, 3), dtype=np.float32)
+    rgb[8:24, 8:24] = 0.55
+    out = rim_light(rgb, intensity=0.35)
+    assert float(out.max()) > float(rgb.max())
