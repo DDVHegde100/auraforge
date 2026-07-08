@@ -13,6 +13,7 @@ from fastapi.responses import Response
 from auraforge_engine import __version__
 from auraforge_engine.analysis import analyze, analyze_summary
 from auraforge_engine.grades.loader import load_grades
+from auraforge_engine.cameras.loader import load_cameras
 from auraforge_engine.io import downscale, load_rgb, rgb_to_data_url, rgb_to_jpeg_bytes, rgb_to_tiff16_bytes
 from auraforge_engine.io.preview_cache import PREVIEW_CACHE
 from auraforge_engine.masks.debug import render_mask_overlay
@@ -23,6 +24,7 @@ from auraforge_engine.masks.subject import subject_mask
 from auraforge_engine.metadata import read_metadata
 from auraforge_engine.pipeline.batch import process_batch_folder
 from auraforge_engine.pipeline.stack import run_enhance_with_look
+from auraforge_engine.enhance.tune import TuneParams
 from auraforge_engine.profiles.a6000 import apply_a6000_base, should_apply_a6000
 from auraforge_engine.registry import load_looks
 from auraforge_engine.signatures.loader import load_signatures
@@ -44,6 +46,26 @@ def _prepare_rgb(path: str, rgb, *, use_a6000_profile: bool) -> tuple[Any, dict[
         rgb = apply_a6000_base(rgb)
         meta["a6000_profile"] = True
     return rgb, meta
+
+
+def _tune_params(
+    clarity: float = 50.0,
+    detail: float = 50.0,
+    light: float = 50.0,
+    shadows: float = 50.0,
+    highlights: float = 50.0,
+    warmth: float = 50.0,
+    look_amount: float = 100.0,
+) -> TuneParams:
+    return TuneParams(
+        clarity=clarity,
+        detail=detail,
+        light=light,
+        shadows=shadows,
+        highlights=highlights,
+        warmth=warmth,
+        look_amount=look_amount,
+    )
 
 
 @app.get("/health")
@@ -77,6 +99,22 @@ def signatures() -> dict[str, Any]:
     return {"count": len(items), "signatures": [s.to_dict() for s in items]}
 
 
+@app.get("/cameras")
+def cameras(tag: str | None = Query(default=None)) -> dict[str, Any]:
+    items = load_cameras()
+    if tag:
+        key = tag.lower()
+        items = [c for c in items if key in [t.lower() for t in c.tags]]
+    return {"count": len(items), "tags": _camera_tags(), "cameras": [c.to_dict() for c in items]}
+
+
+def _camera_tags() -> list[str]:
+    tags: set[str] = set()
+    for cam in load_cameras():
+        tags.update(t.lower() for t in cam.tags)
+    return sorted(tags)
+
+
 def _grade_tags() -> list[str]:
     tags: set[str] = set()
     for grade in load_grades():
@@ -107,8 +145,12 @@ async def process_preview(
             "name": file.filename,
             "analysis": analyze_summary(preview),
         }
-    except Exception as exc:
+    except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except ImportError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"preview failed: {exc}") from exc
 
 
 @app.post("/process/analyze")
@@ -167,13 +209,22 @@ async def process_enhance(
     strength: float = Form(50.0),
     mode: str = Form("natural"),
     grade_id: str = Form(""),
+    camera_id: str = Form(""),
     signature_id: str = Form(""),
     max_size: int = Form(1600),
     use_onnx_sky: bool = Form(False),
     pro_safe: bool = Form(True),
     use_a6000_profile: bool = Form(False),
+    clarity: float = Form(50.0),
+    detail: float = Form(50.0),
+    light: float = Form(50.0),
+    shadows: float = Form(50.0),
+    highlights: float = Form(50.0),
+    warmth: float = Form(50.0),
+    look_amount: float = Form(100.0),
 ) -> dict[str, Any]:
     suffix = Path(file.filename or "upload.jpg").suffix or ".jpg"
+    tune = _tune_params(clarity, detail, light, shadows, highlights, warmth, look_amount)
     try:
         data = await file.read()
         cache_key = PREVIEW_CACHE.make_key(
@@ -181,11 +232,13 @@ async def process_enhance(
             strength=strength,
             mode=mode,
             grade_id=grade_id,
+            camera_id=camera_id,
             signature_id=signature_id,
             max_size=max_size,
             use_onnx_sky=use_onnx_sky,
             pro_safe=pro_safe,
             use_a6000_profile=use_a6000_profile,
+            **tune.to_dict(),
         )
         cached = PREVIEW_CACHE.get(cache_key)
         if cached is not None:
@@ -201,9 +254,11 @@ async def process_enhance(
                 strength=strength,
                 mode=mode,
                 grade_id=grade_id or None,
+                camera_id=camera_id or None,
                 signature_id=signature_id or None,
                 use_onnx_sky=use_onnx_sky,
                 pro_safe=pro_safe,
+                tune=tune,
             )
             preview = downscale(enhanced, max_size=max_size)
             url = rgb_to_data_url(preview)
@@ -232,25 +287,36 @@ async def process_batch(
     strength: float = Form(50.0),
     mode: str = Form("natural"),
     grade_id: str = Form(""),
+    camera_id: str = Form(""),
     signature_id: str = Form(""),
     out_dir: str = Form(""),
     limit: int = Form(50),
     pro_safe: bool = Form(True),
     use_onnx_sky: bool = Form(False),
     use_a6000_profile: bool = Form(False),
+    clarity: float = Form(50.0),
+    detail: float = Form(50.0),
+    light: float = Form(50.0),
+    shadows: float = Form(50.0),
+    highlights: float = Form(50.0),
+    warmth: float = Form(50.0),
+    look_amount: float = Form(100.0),
 ) -> dict[str, Any]:
+    tune = _tune_params(clarity, detail, light, shadows, highlights, warmth, look_amount)
     try:
         result = process_batch_folder(
             folder,
             strength=strength,
             mode=mode,
             grade_id=grade_id or None,
+            camera_id=camera_id or None,
             signature_id=signature_id or None,
             out_dir=out_dir or None,
             limit=limit,
             pro_safe=pro_safe,
             use_onnx_sky=use_onnx_sky,
             use_a6000_profile=use_a6000_profile,
+            tune=tune,
         )
         return {"ok": True, **result}
     except ValueError as exc:
@@ -265,13 +331,22 @@ async def process_export(
     strength: float = Form(50.0),
     mode: str = Form("natural"),
     grade_id: str = Form(""),
+    camera_id: str = Form(""),
     signature_id: str = Form(""),
     fmt: str = Form("jpeg"),
     use_onnx_sky: bool = Form(False),
     pro_safe: bool = Form(True),
     use_a6000_profile: bool = Form(False),
+    clarity: float = Form(50.0),
+    detail: float = Form(50.0),
+    light: float = Form(50.0),
+    shadows: float = Form(50.0),
+    highlights: float = Form(50.0),
+    warmth: float = Form(50.0),
+    look_amount: float = Form(100.0),
 ) -> Response:
     suffix = Path(file.filename or "upload.jpg").suffix or ".jpg"
+    tune = _tune_params(clarity, detail, light, shadows, highlights, warmth, look_amount)
     try:
         data = await file.read()
         with tempfile.NamedTemporaryFile(suffix=suffix, delete=True) as tmp:
@@ -284,9 +359,11 @@ async def process_export(
                 strength=strength,
                 mode=mode,
                 grade_id=grade_id or None,
+                camera_id=camera_id or None,
                 signature_id=signature_id or None,
                 use_onnx_sky=use_onnx_sky,
                 pro_safe=pro_safe,
+                tune=tune,
             )
         if fmt.lower() in ("tiff", "tif", "tiff16"):
             body = rgb_to_tiff16_bytes(enhanced)

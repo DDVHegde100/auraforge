@@ -8,6 +8,7 @@ from typing import Any
 from auraforge_engine.io.export import export_jpeg
 from auraforge_engine.io.load import JPEG_PNG, RAW, TIFF, load_rgb
 from auraforge_engine.metadata import read_metadata
+from auraforge_engine.enhance.tune import TuneParams
 from auraforge_engine.pipeline.stack import run_enhance_with_look
 from auraforge_engine.profiles.a6000 import apply_a6000_base, should_apply_a6000
 
@@ -44,10 +45,12 @@ def process_batch_folder(
     strength: float = 50.0,
     mode: str = "natural",
     grade_id: str | None = None,
+    camera_id: str | None = None,
     signature_id: str | None = None,
     pro_safe: bool = True,
     use_onnx_sky: bool = False,
     use_a6000_profile: bool = False,
+    tune: TuneParams | None = None,
     out_dir: str | Path | None = None,
     limit: int = 50,
 ) -> dict[str, Any]:
@@ -70,9 +73,11 @@ def process_batch_folder(
                 strength=strength,
                 mode=mode,
                 grade_id=grade_id,
+                camera_id=camera_id,
                 signature_id=signature_id,
                 pro_safe=pro_safe,
                 use_onnx_sky=use_onnx_sky,
+                tune=tune,
             )
             entry: dict[str, Any] = {**prep, "ok": True, "stack_order": meta.get("stack_order")}
             if dest:

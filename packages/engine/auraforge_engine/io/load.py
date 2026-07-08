@@ -9,6 +9,7 @@ import numpy as np
 import tifffile
 
 JPEG_PNG = {".jpg", ".jpeg", ".png", ".JPG", ".JPEG", ".PNG", ".webp", ".WEBP"}
+HEIC = {".heic", ".HEIC", ".heif", ".HEIF"}
 TIFF = {".tif", ".tiff", ".TIF", ".TIFF"}
 RAW = {".arw", ".ARW", ".dng", ".DNG", ".nef", ".NEF", ".cr2", ".CR2", ".cr3", ".CR3"}
 
@@ -60,12 +61,34 @@ def load_raw(path: Path | str) -> np.ndarray:
     return rgb16.astype(np.float32) / 65535.0
 
 
+def load_heic(path: Path | str) -> np.ndarray:
+    path = Path(path)
+    if path.suffix not in HEIC:
+        raise ValueError(f"not heic: {path.suffix}")
+    try:
+        from pillow_heif import register_heif_opener
+
+        register_heif_opener()
+    except ImportError:
+        pass
+    from PIL import Image
+
+    with Image.open(path) as img:
+        rgb8 = np.array(img.convert("RGB"), dtype=np.uint8)
+    return rgb8.astype(np.float32) / 255.0
+
+
 def load_rgb(path: Path | str) -> np.ndarray:
     path = Path(path)
     if path.suffix in JPEG_PNG:
         return load_jpeg_png(path)
+    if path.suffix in HEIC:
+        return load_heic(path)
     if path.suffix in TIFF:
         return load_tiff(path)
     if path.suffix in RAW:
         return load_raw(path)
-    raise ValueError(f"unsupported type: {path.suffix}")
+    raise ValueError(
+        f"unsupported type: {path.suffix} — use JPEG, PNG, HEIC, TIFF, or RAW (.arw). "
+        "for iPhone HEIC: pip install pillow-heif"
+    )
