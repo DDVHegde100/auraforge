@@ -35,3 +35,8 @@ def test_portrait_grades_6_10() -> None:
     assert get_look("grade_portrait_bw_ink") is not None
     assert get_look("grade_portrait_moody_rembrandt") is not None
     assert len(load_grades_by_tag("portrait")) >= 10
+
+
+def test_food_grades() -> None:
+    assert get_look("grade_food_appetite") is not None
+    assert get_look("grade_food_street_night") is not None
