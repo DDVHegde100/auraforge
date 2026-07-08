@@ -46,3 +46,21 @@ def test_portrait_mode_boosts_vignette() -> None:
     out = apply_mode(base, "portrait")
     assert out.vignette > base.vignette
     assert out.clarity < base.clarity
+
+
+from auraforge_engine.enhance import apply_recipe, run_enhance
+
+
+def test_apply_recipe_changes_image() -> None:
+    rgb = np.full((16, 16, 3), 0.35, dtype=np.float32)
+    recipe = DevelopRecipe(exposure_stops=0.5, contrast=0.1)
+    out = apply_recipe(rgb, recipe)
+    assert float(out.mean()) > float(rgb.mean())
+
+
+def test_run_enhance_returns_meta() -> None:
+    rgb = np.full((24, 32, 3), 0.4, dtype=np.float32)
+    out, meta = run_enhance(rgb, strength=60.0, mode="natural")
+    assert out.shape == rgb.shape
+    assert meta["strength"] == 60.0
+    assert "recipe" in meta

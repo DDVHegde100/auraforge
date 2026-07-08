@@ -6,11 +6,12 @@ import tempfile
 from pathlib import Path
 from typing import Any
 
-from fastapi import FastAPI, File, HTTPException, UploadFile
+from fastapi import FastAPI, File, Form, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 
 from auraforge_engine import __version__
-from auraforge_engine.analysis import analyze
+from auraforge_engine.analysis import analyze, analyze_summary
+from auraforge_engine.enhance.run import run_enhance
 from auraforge_engine.io import downscale, load_rgb, rgb_to_data_url
 from auraforge_engine.registry import load_looks
 
@@ -55,6 +56,7 @@ async def process_preview(
             "height": h,
             "preview": url,
             "name": file.filename,
+            "analysis": analyze_summary(preview),
         }
     except Exception as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
@@ -70,5 +72,35 @@ async def process_analyze(file: UploadFile = File(...)) -> dict[str, Any]:
             tmp.flush()
             rgb = load_rgb(tmp.name)
             return {"ok": True, "name": file.filename, "analysis": analyze(rgb)}
+    except Exception as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@app.post("/process/enhance")
+async def process_enhance(
+    file: UploadFile = File(...),
+    strength: float = Form(50.0),
+    mode: str = Form("natural"),
+    max_size: int = Form(1600),
+) -> dict[str, Any]:
+    suffix = Path(file.filename or "upload.jpg").suffix or ".jpg"
+    try:
+        data = await file.read()
+        with tempfile.NamedTemporaryFile(suffix=suffix, delete=True) as tmp:
+            tmp.write(data)
+            tmp.flush()
+            rgb = load_rgb(tmp.name)
+            enhanced, meta = run_enhance(rgb, strength=strength, mode=mode)
+            preview = downscale(enhanced, max_size=max_size)
+            url = rgb_to_data_url(preview)
+        h, w = preview.shape[:2]
+        return {
+            "ok": True,
+            "width": w,
+            "height": h,
+            "preview": url,
+            "name": file.filename,
+            **meta,
+        }
     except Exception as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
