@@ -19,6 +19,7 @@ class Look:
     skin_protect: bool = True
     stack: dict[str, Any] = field(default_factory=dict)
     notes: str = ""
+    meta: dict[str, Any] = field(default_factory=dict)
 
     def __post_init__(self) -> None:
         if self.kind not in LOOK_KINDS:
@@ -38,4 +39,5 @@ class Look:
             skin_protect=bool(data.get("skin_protect", True)),
             stack=dict(data.get("stack") or {}),
             notes=str(data.get("notes") or ""),
+            meta=dict(data.get("meta") or {}),
         )

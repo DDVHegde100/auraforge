@@ -11,7 +11,7 @@ from auraforge_engine.pipeline.stack import run_enhance_with_look
 
 def test_load_cameras_count_20() -> None:
     cameras = load_cameras()
-    assert len(cameras) >= 20
+    assert len(cameras) >= 30
     assert all(c.kind == "camera" for c in cameras)
 
 
