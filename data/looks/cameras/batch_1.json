@@ -1,0 +1,171 @@
+[
+  {
+    "id": "cam_disposable",
+    "name": "disposable",
+    "kind": "camera",
+    "tags": ["camera", "disposable", "flash", "film"],
+    "notes": "single-use flash camera — blown highlights, heavy vignette, cheap lens",
+    "stack": {
+      "barrel_distort": {"k1": 0.08, "strength": 0.7},
+      "develop": {"contrast": 0.10, "saturation": 0.14, "warmth": 0.16, "exposure_stops": 0.08},
+      "highlight_bloom": {"intensity": 0.32, "threshold": 0.68},
+      "soft_haze": {"lift": 0.05, "desaturate": 0.04},
+      "vignette": {"strength": 0.28, "feather": 0.55},
+      "film_grain": {"amount": 0.14, "size": 2.2, "seed": 3},
+      "channel_offset_fringe": {"strength": 0.14, "red_offset": [1, 1], "blue_offset": [-1, -1]}
+    }
+  },
+  {
+    "id": "cam_g7x",
+    "name": "G7X",
+    "kind": "camera",
+    "tags": ["camera", "digital", "compact", "vlog"],
+    "notes": "canon powershot G7X — clean digicam, punchy mids, slight warm roll-off",
+    "stack": {
+      "develop": {"contrast": 0.08, "clarity": 0.10, "saturation": 0.06, "warmth": 0.06},
+      "multiscale_detail": {"strength": 0.12, "sigmas": [1.0, 2.5, 5.0]},
+      "highlight_bloom": {"intensity": 0.10, "threshold": 0.82},
+      "soft_haze": {"lift": 0.02, "warmth": 0.04}
+    }
+  },
+  {
+    "id": "cam_fj_color",
+    "name": "FJ color",
+    "kind": "camera",
+    "tags": ["camera", "fuji", "film", "color"],
+    "notes": "fuji color science — emerald shadows, warm highlights",
+    "stack": {
+      "color_matrix": {
+        "matrix": [[1.05, -0.04, 0.0], [-0.02, 1.02, 0.04], [0.0, 0.06, 0.96]],
+        "offset": [0.0, 0.01, 0.0],
+        "strength": 0.85
+      },
+      "split_tone": {
+        "shadow_rgb": [0.02, 0.08, 0.06],
+        "highlight_rgb": [1.0, 0.94, 0.82],
+        "strength": 0.22
+      },
+      "develop": {"contrast": 0.06, "vibrance": 0.10},
+      "film_grain": {"amount": 0.05, "size": 1.0, "seed": 21}
+    }
+  },
+  {
+    "id": "cam_vcr",
+    "name": "VCR",
+    "kind": "camera",
+    "tags": ["camera", "vcr", "retro", "video"],
+    "notes": "VHS tape dub — scanlines, chroma bleed, soft tracking",
+    "stack": {
+      "develop": {"contrast": -0.04, "saturation": -0.08},
+      "vcr_tape": {
+        "scanline_strength": 0.16,
+        "softness": 0.32,
+        "tracking_noise": 0.04,
+        "chroma_bleed": 0.20,
+        "desaturate": 0.14,
+        "seed": 9
+      },
+      "vignette": {"strength": 0.12, "feather": 0.7}
+    }
+  },
+  {
+    "id": "cam_chromatic",
+    "name": "chromatic",
+    "kind": "camera",
+    "tags": ["camera", "lens", "experimental"],
+    "notes": "radial chromatic aberration — fringing at frame edges",
+    "stack": {
+      "chromatic_aberration": {"strength": 0.38, "radial_power": 1.5, "max_shift": 4.0},
+      "develop": {"clarity": 0.06, "contrast": 0.04},
+      "channel_offset_fringe": {"strength": 0.10, "red_offset": [2, 0], "blue_offset": [-2, 0]}
+    }
+  },
+  {
+    "id": "cam_kino",
+    "name": "kino",
+    "kind": "camera",
+    "tags": ["camera", "cinema", "film", "kodak"],
+    "notes": "motion picture print — teal shadows, amber highlights, fine grain",
+    "stack": {
+      "color_matrix": {
+        "matrix": [[1.08, -0.02, 0.0], [-0.01, 1.0, 0.02], [0.02, 0.04, 0.94]],
+        "strength": 0.75
+      },
+      "split_tone": {
+        "shadow_rgb": [0.02, 0.06, 0.10],
+        "highlight_rgb": [1.0, 0.90, 0.72],
+        "balance": -0.08,
+        "strength": 0.28
+      },
+      "develop": {"contrast": 0.10, "shadow_lift": 0.06, "highlight_recovery": 0.08},
+      "film_grain": {"amount": 0.06, "size": 0.9, "seed": 44}
+    }
+  },
+  {
+    "id": "cam_lomo",
+    "name": "lomo",
+    "kind": "camera",
+    "tags": ["camera", "lomo", "toy", "cross"],
+    "notes": "lomo LC-A vibe — vignette, saturated cross-process",
+    "stack": {
+      "barrel_distort": {"k1": 0.14, "strength": 0.85},
+      "develop": {"contrast": 0.14, "saturation": 0.18, "vibrance": 0.12},
+      "split_tone": {
+        "shadow_rgb": [0.04, 0.10, 0.14],
+        "highlight_rgb": [1.0, 0.88, 0.55],
+        "strength": 0.30
+      },
+      "vignette": {"strength": 0.35, "feather": 0.45},
+      "film_grain": {"amount": 0.08, "size": 1.6, "seed": 17}
+    }
+  },
+  {
+    "id": "cam_extrachrome",
+    "name": "extrachrome",
+    "kind": "camera",
+    "tags": ["camera", "slide", "ektachrome", "film"],
+    "notes": "ektachrome slide — blue shadows, punchy contrast, crisp",
+    "stack": {
+      "color_matrix": {
+        "matrix": [[0.98, 0.02, 0.04], [0.0, 1.0, 0.06], [0.04, 0.02, 1.08]],
+        "strength": 0.9
+      },
+      "develop": {"contrast": 0.16, "clarity": 0.08, "saturation": 0.10},
+      "split_tone": {
+        "shadow_rgb": [0.02, 0.05, 0.12],
+        "highlight_rgb": [1.0, 0.98, 0.88],
+        "strength": 0.18
+      },
+      "film_grain": {"amount": 0.04, "size": 0.8, "seed": 55}
+    }
+  },
+  {
+    "id": "cam_mju",
+    "name": "MJU",
+    "kind": "camera",
+    "tags": ["camera", "olympus", "compact", "flash"],
+    "notes": "olympus mju II — soft flash, cool fill, point-and-shoot charm",
+    "stack": {
+      "barrel_distort": {"k1": 0.05, "strength": 0.5},
+      "develop": {"contrast": 0.04, "warmth": -0.04, "shadow_lift": 0.08},
+      "highlight_bloom": {"intensity": 0.22, "threshold": 0.74},
+      "soft_haze": {"lift": 0.03, "desaturate": 0.06, "warmth": -0.03},
+      "film_grain": {"amount": 0.06, "size": 1.1, "seed": 88}
+    }
+  },
+  {
+    "id": "cam_super8",
+    "name": "super 8",
+    "kind": "camera",
+    "tags": ["camera", "super8", "film", "vintage"],
+    "notes": "super 8 home movie — warm fade, heavy grain, soft gate weave",
+    "stack": {
+      "develop": {"contrast": -0.02, "saturation": 0.06, "warmth": 0.14, "shadow_lift": 0.10},
+      "floating_light_gradient": {"angle_deg": 35, "intensity": 0.18, "warmth": 0.22},
+      "soft_haze": {"lift": 0.08, "desaturate": 0.08, "warmth": 0.10},
+      "film_grain": {"amount": 0.18, "size": 2.8, "seed": 8},
+      "vignette": {"strength": 0.20, "feather": 0.6},
+      "vcr_tape": {"scanline_strength": 0.04, "softness": 0.12, "tracking_noise": 0.02, "chroma_bleed": 0.06, "desaturate": 0.0, "seed": 8}
+    }
+  }
+]

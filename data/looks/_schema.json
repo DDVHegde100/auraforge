@@ -6,7 +6,7 @@
   "properties": {
     "id": { "type": "string" },
     "name": { "type": "string" },
-    "kind": { "enum": ["signature", "grade", "enhance"] },
+    "kind": { "enum": ["signature", "grade", "enhance", "camera"] },
     "tags": {
       "type": "array",
       "items": { "type": "string" }

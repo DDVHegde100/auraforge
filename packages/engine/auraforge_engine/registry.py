@@ -30,6 +30,9 @@ def load_looks(directory: Path | None = None) -> list[Look]:
     signatures_dir = base / "signatures"
     if signatures_dir.is_dir():
         paths.extend(sorted(signatures_dir.glob("*.json")))
+    cameras_dir = base / "cameras"
+    if cameras_dir.is_dir():
+        paths.extend(sorted(cameras_dir.glob("*.json")))
     for path in paths:
         if path.name.startswith("_"):
             continue

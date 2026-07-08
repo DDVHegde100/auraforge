@@ -6,7 +6,7 @@ from dataclasses import asdict, dataclass, field
 from typing import Any
 
 
-LOOK_KINDS = ("signature", "grade", "enhance")
+LOOK_KINDS = ("signature", "grade", "enhance", "camera")
 
 
 @dataclass

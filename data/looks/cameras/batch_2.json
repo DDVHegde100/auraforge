@@ -1,0 +1,173 @@
+[
+  {
+    "id": "cam_kdk2383",
+    "name": "KDK2383",
+    "kind": "camera",
+    "tags": ["camera", "kodak", "cinema", "print"],
+    "notes": "kodak 2383 print film — warm shadows, neutral mids, cinema release",
+    "stack": {
+      "color_matrix": {
+        "matrix": [[1.06, 0.02, 0.0], [0.02, 1.0, -0.02], [0.0, 0.02, 0.96]],
+        "strength": 0.8
+      },
+      "split_tone": {
+        "shadow_rgb": [0.06, 0.04, 0.02],
+        "highlight_rgb": [1.0, 0.95, 0.85],
+        "strength": 0.24
+      },
+      "develop": {"contrast": 0.08, "shadow_lift": 0.05},
+      "film_grain": {"amount": 0.05, "size": 0.85, "seed": 238}
+    }
+  },
+  {
+    "id": "cam_lc_color",
+    "name": "LC color",
+    "kind": "camera",
+    "tags": ["camera", "lomo", "lc-a", "color"],
+    "notes": "lomo LC-A color — tunnel vignette, hyper saturation at center",
+    "stack": {
+      "barrel_distort": {"k1": 0.18, "strength": 1.0},
+      "develop": {"contrast": 0.12, "saturation": 0.22, "vibrance": 0.16},
+      "color_matrix": {
+        "matrix": [[1.1, -0.06, 0.0], [-0.04, 1.08, 0.0], [0.0, 0.08, 1.05]],
+        "strength": 0.7
+      },
+      "vignette": {"strength": 0.42, "feather": 0.38},
+      "channel_offset_fringe": {"strength": 0.12, "red_offset": [2, 1], "blue_offset": [-2, -1]}
+    }
+  },
+  {
+    "id": "cam_cinema",
+    "name": "cinema",
+    "kind": "camera",
+    "tags": ["camera", "cinema", "blockbuster"],
+    "notes": "general blockbuster cinema — teal-orange, controlled contrast",
+    "stack": {
+      "split_tone": {
+        "shadow_rgb": [0.02, 0.07, 0.11],
+        "highlight_rgb": [1.0, 0.88, 0.70],
+        "balance": -0.05,
+        "strength": 0.32
+      },
+      "develop": {"contrast": 0.10, "dehaze": 0.06, "clarity": 0.06},
+      "film_grain": {"amount": 0.04, "size": 0.75, "seed": 70},
+      "vignette": {"strength": 0.10, "feather": 0.75}
+    }
+  },
+  {
+    "id": "cam_sepia",
+    "name": "sepia",
+    "kind": "camera",
+    "tags": ["camera", "sepia", "vintage", "mono"],
+    "notes": "antique sepia print",
+    "stack": {
+      "sepia_tone": {"strength": 0.92, "warmth": 0.10},
+      "develop": {"contrast": 0.06, "shadow_lift": 0.04},
+      "soft_haze": {"lift": 0.04, "desaturate": 0.05},
+      "vignette": {"strength": 0.18, "feather": 0.65},
+      "film_grain": {"amount": 0.07, "size": 1.4, "seed": 18}
+    }
+  },
+  {
+    "id": "cam_booth",
+    "name": "booth",
+    "kind": "camera",
+    "tags": ["camera", "booth", "flash", "portrait"],
+    "notes": "mall photo booth — harsh flash, flat background, slight cool",
+    "stack": {
+      "develop": {"contrast": 0.12, "saturation": -0.06, "exposure_stops": 0.10},
+      "highlight_bloom": {"intensity": 0.35, "threshold": 0.65},
+      "rim_light": {"intensity": 0.14, "tint": [1.0, 0.98, 0.95]},
+      "vignette": {"strength": 0.22, "feather": 0.5},
+      "film_grain": {"amount": 0.09, "size": 1.5, "seed": 42}
+    }
+  },
+  {
+    "id": "cam_cs500",
+    "name": "CS500",
+    "kind": "camera",
+    "tags": ["camera", "point-shoot", "90s", "digital"],
+    "notes": "90s point-and-shoot — consumer color, mild softness",
+    "stack": {
+      "develop": {"contrast": 0.05, "saturation": 0.08, "warmth": 0.08, "shadow_lift": 0.06},
+      "soft_haze": {"lift": 0.03, "desaturate": 0.04},
+      "highlight_bloom": {"intensity": 0.14, "threshold": 0.78},
+      "film_grain": {"amount": 0.07, "size": 1.3, "seed": 500},
+      "channel_offset_fringe": {"strength": 0.08, "red_offset": [1, 0], "blue_offset": [-1, 0]}
+    }
+  },
+  {
+    "id": "cam_superia",
+    "name": "superia",
+    "kind": "camera",
+    "tags": ["camera", "fuji", "superia", "film"],
+    "notes": "fuji superia 400 — green-cyan shadows, everyday consumer negative",
+    "stack": {
+      "color_matrix": {
+        "matrix": [[1.0, -0.02, 0.02], [-0.01, 1.04, 0.06], [0.02, 0.04, 0.98]],
+        "strength": 0.88
+      },
+      "develop": {"contrast": 0.06, "saturation": 0.08, "vibrance": 0.06},
+      "split_tone": {
+        "shadow_rgb": [0.02, 0.07, 0.08],
+        "highlight_rgb": [1.0, 0.96, 0.86],
+        "strength": 0.16
+      },
+      "film_grain": {"amount": 0.10, "size": 1.5, "seed": 400}
+    }
+  },
+  {
+    "id": "cam_polaroid",
+    "name": "polaroid",
+    "kind": "camera",
+    "tags": ["camera", "instant", "polaroid", "soft"],
+    "notes": "instant film — faded, warm, soft chemical spread",
+    "stack": {
+      "develop": {"contrast": -0.04, "saturation": 0.04, "warmth": 0.12, "shadow_lift": 0.12},
+      "soft_haze": {"lift": 0.06, "desaturate": 0.10, "warmth": 0.08},
+      "highlight_bloom": {"intensity": 0.18, "threshold": 0.72},
+      "floating_light_gradient": {"angle_deg": 120, "intensity": 0.12, "warmth": 0.18},
+      "film_grain": {"amount": 0.08, "size": 2.0, "seed": 77},
+      "vignette": {"strength": 0.16, "feather": 0.62}
+    }
+  },
+  {
+    "id": "cam_cctv",
+    "name": "CCTV",
+    "kind": "camera",
+    "tags": ["camera", "cctv", "surveillance", "experimental"],
+    "notes": "security camera — green cast, low saturation, soft interlace",
+    "stack": {
+      "color_matrix": {
+        "matrix": [[0.92, 0.06, 0.0], [0.04, 1.0, 0.0], [0.0, 0.08, 0.88]],
+        "strength": 0.9
+      },
+      "develop": {"contrast": -0.06, "saturation": -0.18, "clarity": -0.04},
+      "vcr_tape": {
+        "scanline_strength": 0.10,
+        "softness": 0.35,
+        "tracking_noise": 0.05,
+        "chroma_bleed": 0.08,
+        "desaturate": 0.10,
+        "seed": 11
+      },
+      "vignette": {"strength": 0.14, "feather": 0.55}
+    }
+  },
+  {
+    "id": "cam_holga",
+    "name": "holga",
+    "kind": "camera",
+    "tags": ["camera", "toy", "holga", "dreamy"],
+    "notes": "plastic toy camera — dreamy blur edges, light leaks, heavy vignette",
+    "stack": {
+      "barrel_distort": {"k1": 0.20, "k2": -0.04, "strength": 0.9},
+      "develop": {"contrast": 0.08, "saturation": 0.10, "shadow_lift": 0.08},
+      "floating_light_gradient": {"angle_deg": 75, "intensity": 0.22, "warmth": 0.20},
+      "orton_glow": {"opacity": 0.28, "blur_sigma": 18},
+      "vignette": {"strength": 0.38, "feather": 0.42},
+      "film_grain": {"amount": 0.11, "size": 2.2, "seed": 13},
+      "channel_offset_fringe": {"strength": 0.16, "red_offset": [2, 2], "blue_offset": [-2, -2]}
+    }
+  }
+]
