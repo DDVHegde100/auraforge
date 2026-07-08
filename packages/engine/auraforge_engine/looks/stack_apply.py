@@ -7,6 +7,10 @@ from typing import Any, Callable
 import numpy as np
 
 from auraforge_engine.develop import apply_vignette
+from auraforge_engine.cameras.film_stock import apply_film_stock
+from auraforge_engine.effects.grain_pro import grain_pro
+from auraforge_engine.effects.halation import film_halation
+from auraforge_engine.effects.lens_profile import lens_profile
 from auraforge_engine.effects import (
     barrel_distort,
     channel_offset_fringe,
@@ -34,6 +38,8 @@ LOOK_GAIN = 1.75
 
 _APPLY_ORDER = (
     "barrel_distort",
+    "lens_profile",
+    "film_stock",
     "develop",
     "color_matrix",
     "split_tone",
@@ -45,7 +51,9 @@ _APPLY_ORDER = (
     "rim_light",
     "multiscale_detail",
     "vignette",
+    "grain_pro",
     "film_grain",
+    "film_halation",
     "vcr_tape",
     "light_remap",
     "false_color_thermal",
@@ -57,6 +65,10 @@ _APPLY_ORDER = (
 def _handlers() -> dict[str, Callable[[np.ndarray, dict[str, Any]], np.ndarray]]:
     return {
         "barrel_distort": lambda rgb, cfg: barrel_distort(rgb, **cfg),
+        "lens_profile": lambda rgb, cfg: lens_profile(rgb, **cfg),
+        "film_stock": lambda rgb, cfg: apply_film_stock(
+            rgb, stock=str(cfg.get("stock", "portra_400")), strength=float(cfg.get("strength", 1.0))
+        ),
         "develop": lambda rgb, cfg: apply_recipe(rgb, DevelopRecipe(**cfg)),
         "color_matrix": lambda rgb, cfg: color_matrix(rgb, **cfg),
         "split_tone": lambda rgb, cfg: split_tone(rgb, **cfg),
@@ -69,6 +81,8 @@ def _handlers() -> dict[str, Callable[[np.ndarray, dict[str, Any]], np.ndarray]]
         "multiscale_detail": lambda rgb, cfg: multiscale_detail(rgb, **cfg),
         "vignette": lambda rgb, cfg: apply_vignette(rgb, **cfg),
         "film_grain": lambda rgb, cfg: film_grain(rgb, **cfg),
+        "grain_pro": lambda rgb, cfg: grain_pro(rgb, **cfg),
+        "film_halation": lambda rgb, cfg: film_halation(rgb, **cfg),
         "vcr_tape": lambda rgb, cfg: vcr_tape(rgb, **cfg),
         "light_remap": lambda rgb, cfg: light_remap(rgb, **cfg),
         "false_color_thermal": lambda rgb, cfg: false_color_thermal(rgb, **cfg),
@@ -83,6 +97,16 @@ def _scale_cfg(key: str, cfg: dict[str, Any], t: float) -> dict[str, Any]:
     eff = t * LOOK_GAIN
     if key == "develop":
         return {k: float(v) * eff for k, v in cfg.items() if isinstance(v, (int, float))}
+    if key == "film_stock":
+        scaled = dict(cfg)
+        scaled["strength"] = float(scaled.get("strength", 1.0)) * eff
+        return scaled
+    if key == "lens_profile":
+        scaled = dict(cfg)
+        for field in ("softness", "vignette", "ca_strength"):
+            if field in scaled:
+                scaled[field] = float(scaled[field]) * eff
+        return scaled
     if key == "color_matrix":
         scaled = dict(cfg)
         base = float(scaled.get("strength", 1.0))
