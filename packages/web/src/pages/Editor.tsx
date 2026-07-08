@@ -15,6 +15,7 @@ import {
 import { TonePanel } from "../components/TonePanel";
 import { ErrorBanner } from "../components/ErrorBanner";
 import { appendTuneToForm, DEFAULT_TUNE, type TuneState } from "../lib/tune";
+import { apiFetch } from "../lib/api";
 import {
   fileMeta,
   normalizeForUpload,
@@ -144,7 +145,7 @@ export default function Editor() {
 
   const loadGrades = useCallback(async (tag: string) => {
     const q = tag === "all" ? "" : `?tag=${encodeURIComponent(tag)}`;
-    const res = await fetch(`/api/grades${q}`);
+    const res = await apiFetch(`/grades${q}`);
     if (!res.ok) throw new Error("grades unavailable");
     const data = await res.json();
     setGrades(data.grades ?? []);
@@ -152,14 +153,14 @@ export default function Editor() {
 
   const loadCameras = useCallback(async (tag: string) => {
     const q = tag === "all" ? "" : `?tag=${encodeURIComponent(tag)}`;
-    const res = await fetch(`/api/cameras${q}`);
+    const res = await apiFetch(`/cameras${q}`);
     if (!res.ok) throw new Error("cameras unavailable");
     const data = await res.json();
     setCameras(data.cameras ?? []);
   }, []);
 
   const loadSignatures = useCallback(async () => {
-    const res = await fetch("/api/signatures");
+    const res = await apiFetch("/signatures");
     if (!res.ok) throw new Error("signatures unavailable");
     const data = await res.json();
     setSignatures(data.signatures ?? []);
@@ -168,9 +169,9 @@ export default function Editor() {
   const refreshHealth = useCallback(async () => {
     try {
       const [health, looks, cache] = await Promise.all([
-        fetch("/api/health").then((r) => r.json()),
-        fetch("/api/looks").then((r) => r.json()),
-        fetch("/api/cache/stats").then((r) => r.json()),
+        apiFetch("/health").then((r) => r.json()),
+        apiFetch("/looks").then((r) => r.json()),
+        apiFetch("/cache/stats").then((r) => r.json()),
       ]);
       setOffline(false);
       setErrorMsg(null);
@@ -217,7 +218,7 @@ export default function Editor() {
           if (!file) return;
           const body = new FormData();
           body.append("file", file);
-          const res = await fetch("/api/process/masks", { method: "POST", body, signal: abort.signal });
+          const res = await apiFetch("/process/masks", { method: "POST", body, signal: abort.signal });
           if (!res.ok) {
             const err = await parseApiError(res, "mask preview failed");
             throw new Error(formatApiError(err.message, err.hint));
@@ -254,7 +255,7 @@ export default function Editor() {
         if (snap.signatureId) body.append("signature_id", snap.signatureId);
         appendTuneToForm(body, snap.tune);
 
-        const res = await fetch("/api/process/enhance", {
+        const res = await apiFetch("/process/enhance", {
           method: "POST",
           body,
           signal: abort.signal,
@@ -371,7 +372,7 @@ export default function Editor() {
         body.append("file", uploadFile);
         body.append("max_size", String(previewMaxRef.current));
         body.append("use_a6000_profile", useA6000 ? "true" : "false");
-        const res = await fetch("/api/process/open", { method: "POST", body });
+        const res = await apiFetch("/process/open", { method: "POST", body });
         if (!res.ok) {
           const err = await parseApiError(res, "open failed");
           setErrorHint(err.hint ?? null);
@@ -451,7 +452,7 @@ export default function Editor() {
       if (snap.cameraId) body.append("camera_id", snap.cameraId);
       if (snap.signatureId) body.append("signature_id", snap.signatureId);
       appendTuneToForm(body, snap.tune);
-      const res = await fetch("/api/process/export", { method: "POST", body });
+      const res = await apiFetch("/process/export", { method: "POST", body });
       if (!res.ok) {
         const err = await res.json();
         throw new Error(err.detail || "export failed");
@@ -489,7 +490,7 @@ export default function Editor() {
       if (snap.cameraId) body.append("camera_id", snap.cameraId);
       if (snap.signatureId) body.append("signature_id", snap.signatureId);
       appendTuneToForm(body, snap.tune);
-      const res = await fetch("/api/process/batch", { method: "POST", body });
+      const res = await apiFetch("/process/batch", { method: "POST", body });
       const data = await res.json();
       if (!res.ok) throw new Error(data.detail || "batch failed");
       setBatchResult(`batch ok ${data.ok}/${data.count}${data.output_dir ? ` → ${data.output_dir}` : ""}`);
