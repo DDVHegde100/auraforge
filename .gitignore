@@ -1,0 +1,16 @@
+.venv/
+__pycache__/
+*.py[cod]
+*.egg-info/
+dist/
+build/
+.DS_Store
+node_modules/
+packages/web/dist/
+samples/
+*.tif
+*.tiff
+.pytest_cache/
+.coverage
+.env
+make_first_8.sh
