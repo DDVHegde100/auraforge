@@ -12,12 +12,12 @@ from fastapi.middleware.cors import CORSMiddleware
 from auraforge_engine import __version__
 from auraforge_engine.analysis import analyze, analyze_summary
 from auraforge_engine.enhance.run import run_enhance
+from auraforge_engine.io import downscale, load_rgb, rgb_to_data_url
 from auraforge_engine.masks.debug import render_mask_overlay
 from auraforge_engine.masks.feather import feather_mask
+from auraforge_engine.masks.onnx_sky import resolve_sky_mask
 from auraforge_engine.masks.skin import skin_soft_mask
-from auraforge_engine.masks.sky import sky_mask
 from auraforge_engine.masks.subject import subject_mask
-from auraforge_engine.io import downscale, load_rgb, rgb_to_data_url
 from auraforge_engine.registry import load_looks
 
 app = FastAPI(title="auraforge", version=__version__)
@@ -81,11 +81,11 @@ async def process_analyze(file: UploadFile = File(...)) -> dict[str, Any]:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
 
-
 @app.post("/process/masks")
 async def process_masks(
     file: UploadFile = File(...),
     max_size: int = Form(1600),
+    use_onnx: bool = Form(False),
 ) -> dict[str, Any]:
     suffix = Path(file.filename or "upload.jpg").suffix or ".jpg"
     try:
@@ -94,7 +94,8 @@ async def process_masks(
             tmp.write(data)
             tmp.flush()
             rgb = load_rgb(tmp.name)
-            sky = feather_mask(sky_mask(rgb), sigma=8.0)
+            sky, sky_source = resolve_sky_mask(rgb, use_onnx=use_onnx)
+            sky = feather_mask(sky, sigma=8.0)
             skin = skin_soft_mask(rgb)
             subject = subject_mask(rgb, skin)
             overlay = render_mask_overlay(rgb, sky=sky, skin=skin, subject=subject)
@@ -107,6 +108,7 @@ async def process_masks(
             "height": h,
             "preview": url,
             "name": file.filename,
+            "sky_source": sky_source,
             "sky_mean": float(sky.mean()),
             "skin_mean": float(skin.mean()),
             "subject_mean": float(subject.mean()),
