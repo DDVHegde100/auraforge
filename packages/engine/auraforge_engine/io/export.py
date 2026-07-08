@@ -6,6 +6,7 @@ from pathlib import Path
 
 import cv2
 import numpy as np
+import tifffile
 
 
 def export_jpeg(rgb: np.ndarray, path: Path | str, quality: int = 92) -> None:
@@ -16,3 +17,10 @@ def export_jpeg(rgb: np.ndarray, path: Path | str, quality: int = 92) -> None:
     ok = cv2.imwrite(str(path), bgr, [cv2.IMWRITE_JPEG_QUALITY, int(quality)])
     if not ok:
         raise ValueError(f"could not write jpeg {path}")
+
+
+def export_tiff16(rgb: np.ndarray, path: Path | str) -> None:
+    path = Path(path)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    rgb16 = (np.clip(rgb, 0.0, 1.0) * 65535.0 + 0.5).astype(np.uint16)
+    tifffile.imwrite(str(path), rgb16, photometric="rgb", compression="zlib")
