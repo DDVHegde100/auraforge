@@ -6,6 +6,7 @@ from auraforge_engine.develop.exposure import apply_exposure_stops
 from auraforge_engine.develop.highlights import apply_highlight_recovery
 from auraforge_engine.develop.shadows import apply_shadow_lift
 from auraforge_engine.develop.vibrance import apply_vibrance_sat
+from auraforge_engine.develop.vignette import apply_vignette
 from auraforge_engine.develop.warmth import apply_warmth_tint
 
 __all__ = [
@@ -17,5 +18,6 @@ __all__ = [
     "apply_mild_denoise",
     "apply_shadow_lift",
     "apply_vibrance_sat",
+    "apply_vignette",
     "apply_warmth_tint",
 ]

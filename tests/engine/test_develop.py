@@ -4,7 +4,17 @@ from __future__ import annotations
 
 import numpy as np
 
-from auraforge_engine.develop import apply_clarity, apply_contrast, apply_dehaze_lite, apply_exposure_stops, apply_highlight_recovery, apply_mild_denoise, apply_vibrance_sat
+from auraforge_engine.develop import (
+    apply_clarity,
+    apply_contrast,
+    apply_dehaze_lite,
+    apply_exposure_stops,
+    apply_highlight_recovery,
+    apply_mild_denoise,
+    apply_vibrance_sat,
+    apply_vignette,
+    apply_warmth_tint,
+)
 
 
 def test_exposure_stops_brightens() -> None:
@@ -62,3 +72,10 @@ def test_dehaze_lite_brightens() -> None:
     rgb[:8, :, :] = 0.55
     out = apply_dehaze_lite(rgb, 0.3)
     assert float(out.mean()) > float(rgb.mean())
+
+
+def test_vignette_darkens_corners() -> None:
+    rgb = np.full((64, 64, 3), 0.6, dtype=np.float32)
+    out = apply_vignette(rgb, strength=0.4)
+    assert float(out[0, 0].mean()) < float(rgb[0, 0].mean())
+    assert float(out[32, 32].mean()) >= float(rgb[32, 32].mean()) - 0.01
