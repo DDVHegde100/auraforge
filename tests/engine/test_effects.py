@@ -55,3 +55,14 @@ def test_rim_light_adds_edge_glow() -> None:
     rgb[8:24, 8:24] = 0.55
     out = rim_light(rgb, intensity=0.35)
     assert float(out.max()) > float(rgb.max())
+
+
+from auraforge_engine.effects import multiscale_detail
+
+
+def test_multiscale_detail_increases_variance() -> None:
+    rgb = np.zeros((32, 32, 3), dtype=np.float32)
+    rgb[8:24, 8:24] = 0.7
+    rgb[12:20, 12:20] = 0.25
+    out = multiscale_detail(rgb, strength=0.25)
+    assert float(out.std()) >= float(rgb.std())
