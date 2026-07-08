@@ -114,7 +114,7 @@ export default function App() {
       nextStrength: number,
       nextMode: EnhanceMode,
       masks: boolean,
-      
+      gradeId: string | null,
     ) => {
       setBusy(true);
       try {
@@ -127,6 +127,7 @@ export default function App() {
         body.append("file", file);
         body.append("strength", String(nextStrength));
         body.append("mode", nextMode);
+        if (gradeId) body.append("grade_id", gradeId);
         const res = await fetch("/api/process/enhance", { method: "POST", body });
         const data = await res.json();
         if (!res.ok) throw new Error(data.detail || "enhance failed");
@@ -152,13 +153,13 @@ export default function App() {
       nextStrength: number,
       nextMode: EnhanceMode,
       masks: boolean,
-      
+      gradeId: string | null,
     ) => {
       const file = fileRef.current;
       if (!file) return;
       if (debounceRef.current) window.clearTimeout(debounceRef.current);
       debounceRef.current = window.setTimeout(() => {
-        void runEnhance(file, nextStrength, nextMode, masks);
+        void runEnhance(file, nextStrength, nextMode, masks, gradeId);
       }, 280);
     },
     [runEnhance],
@@ -181,7 +182,7 @@ export default function App() {
           setHasImage(true);
         }
         setAnalysis(data.analysis ?? null);
-        await runEnhance(file, strength, mode, showMasks);
+        await runEnhance(file, strength, mode, showMasks, selectedGrade);
       } catch (err) {
         setStatus(err instanceof Error ? err.message : "preview failed");
         setHasImage(false);
@@ -190,7 +191,7 @@ export default function App() {
         setBusy(false);
       }
     },
-    [mode, runEnhance, showMasks, strength],
+    [mode, runEnhance, selectedGrade, showMasks, strength],
   );
 
   const onDrop = (e: React.DragEvent) => {
@@ -263,7 +264,7 @@ export default function App() {
             className={selectedGrade === null ? "grade-chip active" : "grade-chip"}
             onClick={() => {
               setSelectedGrade(null);
-              setSelectedGrade(null);
+              scheduleEnhance(strength, mode, showMasks, null);
             }}
           >
             none
@@ -275,7 +276,7 @@ export default function App() {
               className={selectedGrade === g.id ? "grade-chip active" : "grade-chip"}
               onClick={() => {
                 setSelectedGrade(g.id);
-                setSelectedGrade(g.id);
+                scheduleEnhance(strength, mode, showMasks, g.id);
               }}
             >
               {g.name}
@@ -296,7 +297,7 @@ export default function App() {
               onChange={(e) => {
                 const v = Number(e.target.value);
                 setStrength(v);
-                scheduleEnhance(v, mode, showMasks);
+                scheduleEnhance(v, mode, showMasks, selectedGrade);
               }}
             />
             <span className="slider-value">{strength}</span>
@@ -309,7 +310,7 @@ export default function App() {
                 className={m === mode ? "mode active" : "mode"}
                 onClick={() => {
                   setMode(m);
-                  scheduleEnhance(strength, m, showMasks);
+                  scheduleEnhance(strength, m, showMasks, selectedGrade);
                 }}
               >
                 {m}
@@ -324,7 +325,7 @@ export default function App() {
                 const on = e.target.checked;
                 setShowMasks(on);
                 const file = fileRef.current;
-                if (file) scheduleEnhance(strength, mode, on);
+                if (file) scheduleEnhance(strength, mode, on, selectedGrade);
               }}
             />
             show mask debug overlay

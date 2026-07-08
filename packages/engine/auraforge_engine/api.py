@@ -11,7 +11,6 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from auraforge_engine import __version__
 from auraforge_engine.analysis import analyze, analyze_summary
-from auraforge_engine.enhance.run import run_enhance
 from auraforge_engine.grades.loader import load_grades
 from auraforge_engine.io import downscale, load_rgb, rgb_to_data_url
 from auraforge_engine.masks.debug import render_mask_overlay
@@ -19,7 +18,9 @@ from auraforge_engine.masks.feather import feather_mask
 from auraforge_engine.masks.onnx_sky import resolve_sky_mask
 from auraforge_engine.masks.skin import skin_soft_mask
 from auraforge_engine.masks.subject import subject_mask
+from auraforge_engine.pipeline.stack import run_enhance_with_look
 from auraforge_engine.registry import load_looks
+from auraforge_engine.signatures.loader import load_signatures
 
 app = FastAPI(title="auraforge", version=__version__)
 app.add_middleware(
@@ -41,17 +42,26 @@ def looks() -> dict:
     return {"count": len(items), "looks": items}
 
 
-
 @app.get("/grades")
-def grades(tag: str | None = Query(default=None)) -> dict:
+def grades(tag: str | None = Query(default=None)) -> dict[str, Any]:
     items = load_grades()
     if tag:
         key = tag.lower()
         items = [g for g in items if key in [t.lower() for t in g.tags]]
+    return {"count": len(items), "tags": _grade_tags(), "grades": [g.to_dict() for g in items]}
+
+
+@app.get("/signatures")
+def signatures() -> dict[str, Any]:
+    items = load_signatures()
+    return {"count": len(items), "signatures": [s.to_dict() for s in items]}
+
+
+def _grade_tags() -> list[str]:
     tags: set[str] = set()
     for grade in load_grades():
         tags.update(t.lower() for t in grade.tags)
-    return {"count": len(items), "tags": sorted(tags), "grades": [g.to_dict() for g in items]}
+    return sorted(tags)
 
 
 @app.post("/process/preview")
@@ -136,6 +146,8 @@ async def process_enhance(
     file: UploadFile = File(...),
     strength: float = Form(50.0),
     mode: str = Form("natural"),
+    grade_id: str = Form(""),
+    signature_id: str = Form(""),
     max_size: int = Form(1600),
     use_onnx_sky: bool = Form(False),
 ) -> dict[str, Any]:
@@ -146,10 +158,12 @@ async def process_enhance(
             tmp.write(data)
             tmp.flush()
             rgb = load_rgb(tmp.name)
-            enhanced, meta = run_enhance(
+            enhanced, meta = run_enhance_with_look(
                 rgb,
                 strength=strength,
                 mode=mode,
+                grade_id=grade_id or None,
+                signature_id=signature_id or None,
                 use_onnx_sky=use_onnx_sky,
             )
             preview = downscale(enhanced, max_size=max_size)
@@ -163,5 +177,7 @@ async def process_enhance(
             "name": file.filename,
             **meta,
         }
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
     except Exception as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
