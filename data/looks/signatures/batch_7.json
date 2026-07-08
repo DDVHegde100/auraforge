@@ -1,0 +1,27 @@
+[
+  {
+    "id": "sig_golden_dust",
+    "name": "golden dust",
+    "kind": "signature",
+    "tags": ["warm", "glow", "creative"],
+    "stack": {
+      "film_grain": {"amount": 0.10, "size": 1.6, "seed": 44},
+      "split_tone": {"strength": 0.12, "highlight_rgb": [1.0, 0.85, 0.55]},
+      "floating_light_gradient": {"intensity": 0.22, "warmth": 0.18},
+      "highlight_bloom": {"intensity": 0.18, "threshold": 0.60}
+    },
+    "notes": "warm particle glow in midtones"
+  },
+  {
+    "id": "sig_editorial_chrome",
+    "name": "editorial chrome",
+    "kind": "signature",
+    "tags": ["editorial", "contrast", "cool"],
+    "stack": {
+      "develop": {"contrast": 0.16, "clarity": 0.12, "warmth": -0.10, "highlight_recovery": 0.08},
+      "split_tone": {"strength": 0.14, "shadow_rgb": [0.04, 0.05, 0.08], "highlight_rgb": [0.95, 0.97, 1.0]},
+      "multiscale_detail": {"strength": 0.10}
+    },
+    "notes": "magazine hard light cool metallics"
+  }
+]
