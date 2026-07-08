@@ -19,6 +19,7 @@ dependencies = [
 
 [project.optional-dependencies]
 dev = ["pytest>=7.0"]
+raw = ["rawpy>=0.21.0"]
 
 [tool.setuptools.packages.find]
 where = ["."]

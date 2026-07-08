@@ -10,6 +10,7 @@ import tifffile
 
 JPEG_PNG = {".jpg", ".jpeg", ".png", ".JPG", ".JPEG", ".PNG", ".webp", ".WEBP"}
 TIFF = {".tif", ".tiff", ".TIF", ".TIFF"}
+RAW = {".arw", ".ARW", ".dng", ".DNG", ".nef", ".NEF", ".cr2", ".CR2", ".cr3", ".CR3"}
 
 
 def load_jpeg_png(path: Path | str) -> np.ndarray:
@@ -39,10 +40,32 @@ def load_tiff(path: Path | str) -> np.ndarray:
     return np.clip(arr.astype(np.float32), 0.0, 1.0)
 
 
+def load_raw(path: Path | str) -> np.ndarray:
+    """optional raw decode — needs rawpy."""
+    path = Path(path)
+    if path.suffix not in RAW:
+        raise ValueError(f"not raw: {path.suffix}")
+    try:
+        import rawpy
+    except ImportError as exc:
+        raise ImportError("rawpy required for raw files: pip install auraforge-engine[raw]") from exc
+    with rawpy.imread(str(path)) as raw:
+        rgb16 = raw.postprocess(
+            use_camera_wb=True,
+            no_auto_bright=True,
+            output_bps=16,
+            gamma=(1, 1),
+            output_color=rawpy.ColorSpace.sRGB,
+        )
+    return rgb16.astype(np.float32) / 65535.0
+
+
 def load_rgb(path: Path | str) -> np.ndarray:
     path = Path(path)
     if path.suffix in JPEG_PNG:
         return load_jpeg_png(path)
     if path.suffix in TIFF:
         return load_tiff(path)
+    if path.suffix in RAW:
+        return load_raw(path)
     raise ValueError(f"unsupported type: {path.suffix}")
