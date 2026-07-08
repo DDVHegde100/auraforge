@@ -421,6 +421,7 @@ h1 {
   text-transform: lowercase;
 }
 
+.grade-list {
   display: flex;
   flex-wrap: wrap;
   gap: 0.4rem;
@@ -505,6 +506,13 @@ h1 {
 
 .compare-section {
   margin-top: 1.25rem;
+}
+
+.timing-badge {
+  margin: 0 0 0.5rem;
+  font-size: 0.78rem;
+  color: #7a9ec4;
+  letter-spacing: 0.04em;
 }
 
 .compare-wrap {
@@ -820,5 +828,582 @@ code {
   font-family: "IBM Plex Mono", ui-monospace, monospace;
   font-size: 0.85em;
   color: #c4a574;
+}
+
+/* ── Studio layout (Lightroom / Luminar style) ── */
+
+.studio-app {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: #0c0e12;
+  z-index: 1;
+}
+
+.studio-topbar {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 1.25rem;
+  padding: 0.55rem 1rem;
+  border-bottom: 1px solid #222830;
+  background: rgba(12, 14, 18, 0.95);
+  backdrop-filter: blur(8px);
+}
+
+.studio-brand {
+  display: flex;
+  align-items: baseline;
+  gap: 0.65rem;
+}
+
+.studio-brand h1 {
+  font-size: 1.35rem;
+  margin: 0;
+  letter-spacing: -0.02em;
+}
+
+.studio-tag {
+  font-size: 0.72rem;
+  color: #8a8f98;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.studio-nav {
+  display: flex;
+  gap: 0.85rem;
+  flex: 1;
+}
+
+.studio-nav a {
+  color: #7a808a;
+  text-decoration: none;
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.studio-nav a.active,
+.studio-nav a:hover {
+  color: #c4a574;
+}
+
+.studio-topbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+}
+
+.studio-icon-btn {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border: 1px solid #333a44;
+  border-radius: 6px;
+  background: #141820;
+  color: #b8bdc6;
+  cursor: pointer;
+}
+
+.studio-icon-btn:hover:not(:disabled) {
+  border-color: #5a6470;
+  color: #e8e6e1;
+}
+
+.studio-icon-btn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.studio-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  border: 1px solid #3a414d;
+  background: #141820;
+  color: #b8bdc6;
+  padding: 0.4rem 0.75rem;
+  border-radius: 6px;
+  font-size: 0.78rem;
+  letter-spacing: 0.03em;
+  cursor: pointer;
+}
+
+.studio-btn:hover:not(:disabled) {
+  border-color: #5a6470;
+  color: #e8e6e1;
+}
+
+.studio-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.studio-btn.primary {
+  border-color: #c4a574;
+  background: rgba(196, 165, 116, 0.12);
+  color: #e8dcc8;
+}
+
+.studio-select {
+  background: #141820;
+  color: #d8dce3;
+  border: 1px solid #333a44;
+  border-radius: 6px;
+  padding: 0.35rem 0.5rem;
+  font-size: 0.78rem;
+}
+
+.studio-banner-wrap {
+  flex: 0 0 auto;
+  padding: 0.5rem 1rem 0;
+}
+
+.studio-body {
+  flex: 1;
+  display: flex;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.studio-sidebar {
+  flex: 0 0 320px;
+  width: 320px;
+  display: flex;
+  flex-direction: column;
+  border-right: 1px solid #222830;
+  background: #101318;
+  min-height: 0;
+}
+
+.sidebar-tabs {
+  flex: 0 0 auto;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 2px;
+  padding: 0.5rem;
+  border-bottom: 1px solid #222830;
+  background: #0e1014;
+}
+
+.sidebar-tab {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.2rem;
+  padding: 0.45rem 0.25rem;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: #7a808a;
+  font-size: 0.62rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  cursor: pointer;
+}
+
+.sidebar-tab:hover {
+  color: #b8bdc6;
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.sidebar-tab.active {
+  color: #e8dcc8;
+  background: rgba(196, 165, 116, 0.12);
+}
+
+.sidebar-panel {
+  flex: 1;
+  overflow-y: auto;
+  padding: 0.85rem 0.75rem 1rem;
+  min-height: 0;
+}
+
+.sidebar-footer {
+  flex: 0 0 auto;
+  display: flex;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.45rem 0.75rem;
+  border-top: 1px solid #222830;
+  font-size: 0.68rem;
+  color: #6a707a;
+  text-transform: lowercase;
+}
+
+.sidebar-status {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.panel-title {
+  margin: 0 0 0.65rem;
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #8a8f98;
+}
+
+.panel-hint {
+  margin: 0.75rem 0 0;
+  font-size: 0.72rem;
+  color: #6a707a;
+  line-height: 1.45;
+}
+
+.mode-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.4rem;
+}
+
+.mode-pill {
+  padding: 0.5rem 0.65rem;
+  border: 1px solid #333a44;
+  border-radius: 6px;
+  background: #141820;
+  color: #b8bdc6;
+  font-size: 0.78rem;
+  text-transform: capitalize;
+  cursor: pointer;
+}
+
+.mode-pill.active {
+  border-color: #7a9ec4;
+  background: rgba(122, 158, 196, 0.12);
+  color: #e8e6e1;
+}
+
+.tone-panel-studio {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+}
+
+.tone-live-bar {
+  margin-bottom: 0.25rem;
+}
+
+.live-pill {
+  display: inline-block;
+  padding: 0.15rem 0.45rem;
+  border-radius: 999px;
+  font-size: 0.65rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #7a9ec4;
+  background: rgba(122, 158, 196, 0.15);
+  border: 1px solid rgba(122, 158, 196, 0.35);
+}
+
+.studio-slider {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.studio-slider-head {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.78rem;
+  color: #b8bdc6;
+}
+
+.studio-slider-val {
+  font-family: "IBM Plex Mono", ui-monospace, monospace;
+  font-size: 0.72rem;
+  color: #7a9ec4;
+}
+
+.studio-slider input[type="range"] {
+  width: 100%;
+  accent-color: #c4a574;
+  height: 4px;
+}
+
+.looks-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+}
+
+.tag-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+.tag-chip {
+  padding: 0.25rem 0.5rem;
+  border: 1px solid #333a44;
+  border-radius: 999px;
+  background: transparent;
+  color: #8a8f98;
+  font-size: 0.68rem;
+  text-transform: lowercase;
+  cursor: pointer;
+}
+
+.tag-chip.active {
+  border-color: #c4a574;
+  color: #e8dcc8;
+  background: rgba(196, 165, 116, 0.1);
+}
+
+.look-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.4rem;
+}
+
+.look-card {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.2rem;
+  min-height: 52px;
+  padding: 0.5rem 0.55rem;
+  border: 1px solid #333a44;
+  border-radius: 6px;
+  background: #141820;
+  color: #b8bdc6;
+  font-size: 0.74rem;
+  text-align: left;
+  cursor: pointer;
+}
+
+.look-card.active {
+  border-color: #7a9ec4;
+  background: rgba(122, 158, 196, 0.1);
+  color: #e8e6e1;
+}
+
+.look-card-name {
+  line-height: 1.25;
+  text-transform: capitalize;
+}
+
+.look-strength {
+  margin-top: 0.25rem;
+  padding-top: 0.65rem;
+  border-top: 1px solid #222830;
+}
+
+.file-info-panel {
+  margin-top: 0.25rem;
+}
+
+.settings-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+}
+
+.studio-check {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.78rem;
+  color: #b8bdc6;
+  cursor: pointer;
+}
+
+.studio-details {
+  margin-top: 0.5rem;
+  font-size: 0.78rem;
+  color: #b8bdc6;
+}
+
+.studio-details summary {
+  cursor: pointer;
+  color: #c4a574;
+  margin-bottom: 0.5rem;
+}
+
+.studio-input {
+  display: block;
+  width: 100%;
+  margin-bottom: 0.45rem;
+  padding: 0.4rem 0.55rem;
+  border: 1px solid #333a44;
+  border-radius: 6px;
+  background: #141820;
+  color: #d8dce3;
+  font-size: 0.78rem;
+}
+
+.studio-canvas {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  background: #0a0c10;
+  position: relative;
+}
+
+.studio-canvas.drag-over::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border: 2px dashed #c4a574;
+  background: rgba(196, 165, 116, 0.06);
+  pointer-events: none;
+  z-index: 5;
+}
+
+.canvas-empty {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 2rem;
+}
+
+.canvas-empty-icon {
+  color: #4a5058;
+  margin-bottom: 0.5rem;
+}
+
+.canvas-empty-title {
+  margin: 0;
+  font-size: 1.1rem;
+  color: #b8bdc6;
+}
+
+.canvas-empty-hint {
+  margin: 0 0 0.75rem;
+  font-size: 0.78rem;
+  color: #6a707a;
+}
+
+.canvas-toolbar {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.45rem 0.85rem;
+  border-bottom: 1px solid #1a1e26;
+  background: rgba(10, 12, 16, 0.9);
+}
+
+.canvas-filename {
+  font-size: 0.78rem;
+  color: #8a8f98;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.canvas-badges {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.canvas-timing {
+  font-size: 0.68rem;
+  color: #6a707a;
+  font-family: "IBM Plex Mono", ui-monospace, monospace;
+}
+
+.canvas-stage {
+  flex: 1;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 0;
+  padding: 0.75rem;
+  overflow: hidden;
+}
+
+.canvas-img {
+  max-width: 100%;
+  max-height: 100%;
+  width: auto;
+  height: auto;
+  object-fit: contain;
+  border-radius: 2px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.45);
+}
+
+.canvas-before {
+  position: absolute;
+  inset: 0;
+  margin: auto;
+  max-width: calc(100% - 1.5rem);
+  max-height: calc(100% - 1.5rem);
+}
+
+.canvas-dim {
+  opacity: 0.55;
+}
+
+.canvas-live-shimmer {
+  position: absolute;
+  inset: 0.75rem;
+  border-radius: 2px;
+  background: linear-gradient(
+    105deg,
+    transparent 40%,
+    rgba(122, 158, 196, 0.06) 50%,
+    transparent 60%
+  );
+  animation: shimmer 1.2s ease-in-out infinite;
+  pointer-events: none;
+}
+
+@keyframes shimmer {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+.canvas-footer {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  padding: 0.55rem 0.85rem 0.75rem;
+  border-top: 1px solid #1a1e26;
+  background: rgba(10, 12, 16, 0.95);
+}
+
+.canvas-footer-icon {
+  color: #6a707a;
+  flex-shrink: 0;
+}
+
+.canvas-scrub {
+  flex: 1;
+  accent-color: #c4a574;
+}
+
+.canvas-scrub-label {
+  font-size: 0.68rem;
+  color: #6a707a;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  min-width: 4.5rem;
+  text-align: right;
+}
+
+@media (min-width: 1100px) {
+  .studio-sidebar {
+    flex: 0 0 360px;
+    width: 360px;
+  }
 }
 

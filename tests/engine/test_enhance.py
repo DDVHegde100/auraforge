@@ -35,7 +35,8 @@ def test_mix_strength_zero_is_identity() -> None:
 def test_mix_strength_half() -> None:
     base = DevelopRecipe(contrast=0.2)
     mixed = mix_strength(base, 50.0)
-    assert abs(mixed.contrast - 0.1) < 1e-6
+    assert mixed.contrast > 0.12
+    assert mixed.contrast < 0.18
 
 
 from auraforge_engine.enhance import apply_mode

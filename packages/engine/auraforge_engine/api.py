@@ -15,6 +15,7 @@ from auraforge_engine.analysis import analyze, analyze_summary
 from auraforge_engine.grades.loader import load_grades
 from auraforge_engine.cameras.loader import load_cameras
 from auraforge_engine.io import downscale, load_rgb, rgb_to_data_url, rgb_to_jpeg_bytes, rgb_to_tiff16_bytes
+from auraforge_engine.io.image_session import IMAGE_SESSIONS
 from auraforge_engine.io.preview_cache import PREVIEW_CACHE
 from auraforge_engine.masks.debug import render_mask_overlay
 from auraforge_engine.masks.feather import feather_mask
@@ -66,6 +67,73 @@ def _tune_params(
         warmth=warmth,
         look_amount=look_amount,
     )
+
+
+async def _load_rgb_for_request(
+    *,
+    session_id: str,
+    file: UploadFile | None,
+    use_a6000_profile: bool,
+) -> tuple[Any, dict[str, Any], bytes, str]:
+    """Resolve rgb from session (fast) or fresh file upload."""
+    if session_id:
+        session = IMAGE_SESSIONS.get(session_id)
+        if session is None:
+            raise HTTPException(status_code=404, detail="session expired — re-upload image")
+        return session.rgb, dict(session.prep_meta), session_id.encode(), session.filename
+
+    if file is None:
+        raise HTTPException(status_code=400, detail="file or session_id required")
+
+    suffix = Path(file.filename or "upload.jpg").suffix or ".jpg"
+    data = await file.read()
+    with tempfile.NamedTemporaryFile(suffix=suffix, delete=True) as tmp:
+        tmp.write(data)
+        tmp.flush()
+        rgb = load_rgb(tmp.name)
+        rgb, prep_meta = _prepare_rgb(tmp.name, rgb, use_a6000_profile=use_a6000_profile)
+    return rgb, prep_meta, data, file.filename or "upload.jpg"
+
+
+def _enhance_preview(
+    rgb,
+    *,
+    max_size: int,
+    strength: float,
+    mode: str,
+    grade_id: str,
+    camera_id: str,
+    signature_id: str,
+    use_onnx_sky: bool,
+    pro_safe: bool,
+    tune: TuneParams,
+    prep_meta: dict[str, Any],
+    filename: str,
+) -> dict[str, Any]:
+    work = downscale(rgb, max_size=max_size)
+    enhanced, meta = run_enhance_with_look(
+        work,
+        strength=strength,
+        mode=mode,
+        grade_id=grade_id or None,
+        camera_id=camera_id or None,
+        signature_id=signature_id or None,
+        use_onnx_sky=use_onnx_sky,
+        pro_safe=pro_safe,
+        tune=tune,
+    )
+    url = rgb_to_data_url(enhanced)
+    h, w = enhanced.shape[:2]
+    return {
+        "ok": True,
+        "width": w,
+        "height": h,
+        "preview": url,
+        "name": filename,
+        "cached": False,
+        **prep_meta,
+        **meta,
+    }
 
 
 @app.get("/health")
@@ -120,6 +188,41 @@ def _grade_tags() -> list[str]:
     for grade in load_grades():
         tags.update(t.lower() for t in grade.tags)
     return sorted(tags)
+
+
+@app.post("/process/open")
+async def process_open(
+    file: UploadFile = File(...),
+    max_size: int = Form(1024),
+    use_a6000_profile: bool = Form(False),
+) -> dict[str, Any]:
+    """Upload once — returns session_id for fast live slider updates."""
+    suffix = Path(file.filename or "upload.jpg").suffix or ".jpg"
+    try:
+        data = await file.read()
+        session = IMAGE_SESSIONS.open(
+            data,
+            suffix,
+            use_a6000_profile=use_a6000_profile,
+            filename=file.filename or "upload.jpg",
+        )
+        preview = downscale(session.rgb, max_size=max_size)
+        url = rgb_to_data_url(preview)
+        h, w = preview.shape[:2]
+        return {
+            "ok": True,
+            "session_id": session.session_id,
+            "width": w,
+            "height": h,
+            "preview": url,
+            "name": file.filename,
+            "analysis": analyze_summary(preview),
+            **session.prep_meta,
+        }
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"open failed: {exc}") from exc
 
 
 @app.post("/process/preview")
@@ -205,13 +308,14 @@ async def process_masks(
 
 @app.post("/process/enhance")
 async def process_enhance(
-    file: UploadFile = File(...),
-    strength: float = Form(50.0),
+    session_id: str = Form(""),
+    file: UploadFile | None = File(None),
+    strength: float = Form(80.0),
     mode: str = Form("natural"),
     grade_id: str = Form(""),
     camera_id: str = Form(""),
     signature_id: str = Form(""),
-    max_size: int = Form(1600),
+    max_size: int = Form(1024),
     use_onnx_sky: bool = Form(False),
     pro_safe: bool = Form(True),
     use_a6000_profile: bool = Form(False),
@@ -223,12 +327,15 @@ async def process_enhance(
     warmth: float = Form(50.0),
     look_amount: float = Form(100.0),
 ) -> dict[str, Any]:
-    suffix = Path(file.filename or "upload.jpg").suffix or ".jpg"
     tune = _tune_params(clarity, detail, light, shadows, highlights, warmth, look_amount)
     try:
-        data = await file.read()
+        rgb, prep_meta, cache_bytes, filename = await _load_rgb_for_request(
+            session_id=session_id,
+            file=file,
+            use_a6000_profile=use_a6000_profile,
+        )
         cache_key = PREVIEW_CACHE.make_key(
-            data,
+            cache_bytes,
             strength=strength,
             mode=mode,
             grade_id=grade_id,
@@ -242,39 +349,28 @@ async def process_enhance(
         )
         cached = PREVIEW_CACHE.get(cache_key)
         if cached is not None:
-            return {**cached, "cached": True}
+            return {**cached, "cached": True, "session_id": session_id or None}
 
-        with tempfile.NamedTemporaryFile(suffix=suffix, delete=True) as tmp:
-            tmp.write(data)
-            tmp.flush()
-            rgb = load_rgb(tmp.name)
-            rgb, prep_meta = _prepare_rgb(tmp.name, rgb, use_a6000_profile=use_a6000_profile)
-            enhanced, meta = run_enhance_with_look(
-                rgb,
-                strength=strength,
-                mode=mode,
-                grade_id=grade_id or None,
-                camera_id=camera_id or None,
-                signature_id=signature_id or None,
-                use_onnx_sky=use_onnx_sky,
-                pro_safe=pro_safe,
-                tune=tune,
-            )
-            preview = downscale(enhanced, max_size=max_size)
-            url = rgb_to_data_url(preview)
-        h, w = preview.shape[:2]
-        payload = {
-            "ok": True,
-            "width": w,
-            "height": h,
-            "preview": url,
-            "name": file.filename,
-            "cached": False,
-            **prep_meta,
-            **meta,
-        }
+        payload = _enhance_preview(
+            rgb,
+            max_size=max_size,
+            strength=strength,
+            mode=mode,
+            grade_id=grade_id,
+            camera_id=camera_id,
+            signature_id=signature_id,
+            use_onnx_sky=use_onnx_sky,
+            pro_safe=pro_safe,
+            tune=tune,
+            prep_meta=prep_meta,
+            filename=filename,
+        )
+        if session_id:
+            payload["session_id"] = session_id
         PREVIEW_CACHE.set(cache_key, payload)
         return payload
+    except HTTPException:
+        raise
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     except Exception as exc:
@@ -284,7 +380,7 @@ async def process_enhance(
 @app.post("/process/batch")
 async def process_batch(
     folder: str = Form(...),
-    strength: float = Form(50.0),
+    strength: float = Form(80.0),
     mode: str = Form("natural"),
     grade_id: str = Form(""),
     camera_id: str = Form(""),
@@ -327,8 +423,9 @@ async def process_batch(
 
 @app.post("/process/export")
 async def process_export(
-    file: UploadFile = File(...),
-    strength: float = Form(50.0),
+    session_id: str = Form(""),
+    file: UploadFile | None = File(None),
+    strength: float = Form(80.0),
     mode: str = Form("natural"),
     grade_id: str = Form(""),
     camera_id: str = Form(""),
@@ -345,26 +442,24 @@ async def process_export(
     warmth: float = Form(50.0),
     look_amount: float = Form(100.0),
 ) -> Response:
-    suffix = Path(file.filename or "upload.jpg").suffix or ".jpg"
     tune = _tune_params(clarity, detail, light, shadows, highlights, warmth, look_amount)
     try:
-        data = await file.read()
-        with tempfile.NamedTemporaryFile(suffix=suffix, delete=True) as tmp:
-            tmp.write(data)
-            tmp.flush()
-            rgb = load_rgb(tmp.name)
-            rgb, _prep = _prepare_rgb(tmp.name, rgb, use_a6000_profile=use_a6000_profile)
-            enhanced, _meta = run_enhance_with_look(
-                rgb,
-                strength=strength,
-                mode=mode,
-                grade_id=grade_id or None,
-                camera_id=camera_id or None,
-                signature_id=signature_id or None,
-                use_onnx_sky=use_onnx_sky,
-                pro_safe=pro_safe,
-                tune=tune,
-            )
+        rgb, _prep_meta, _cache_bytes, _filename = await _load_rgb_for_request(
+            session_id=session_id,
+            file=file,
+            use_a6000_profile=use_a6000_profile,
+        )
+        enhanced, _meta = run_enhance_with_look(
+            rgb,
+            strength=strength,
+            mode=mode,
+            grade_id=grade_id or None,
+            camera_id=camera_id or None,
+            signature_id=signature_id or None,
+            use_onnx_sky=use_onnx_sky,
+            pro_safe=pro_safe,
+            tune=tune,
+        )
         if fmt.lower() in ("tiff", "tif", "tiff16"):
             body = rgb_to_tiff16_bytes(enhanced)
             return Response(

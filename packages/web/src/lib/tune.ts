@@ -10,8 +10,8 @@ export type TuneState = {
 
 export const DEFAULT_TUNE: TuneState = {
   clarity: 50,
-  detail: 55,
-  light: 52,
+  detail: 50,
+  light: 50,
   shadows: 50,
   highlights: 50,
   warmth: 50,

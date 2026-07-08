@@ -27,7 +27,7 @@ def rgb_to_jpeg_bytes(rgb: np.ndarray, quality: int = 88) -> bytes:
     return buf.tobytes()
 
 
-def rgb_to_data_url(rgb: np.ndarray, quality: int = 88) -> str:
+def rgb_to_data_url(rgb: np.ndarray, quality: int = 92) -> str:
     raw = rgb_to_jpeg_bytes(rgb, quality=quality)
     b64 = base64.b64encode(raw).decode("ascii")
     return f"data:image/jpeg;base64,{b64}"

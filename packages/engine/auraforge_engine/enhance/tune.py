@@ -38,11 +38,18 @@ def _norm(v: float) -> float:
 
 
 def merge_tune_into_recipe(recipe: DevelopRecipe, tune: TuneParams) -> DevelopRecipe:
+    """Apply user sliders at full strength (not scaled by AI Enhance amount)."""
     data = recipe.to_dict()
-    data["shadow_lift"] = float(data.get("shadow_lift", 0.0)) + _norm(tune.shadows) * 0.16
-    data["highlight_recovery"] = float(data.get("highlight_recovery", 0.0)) + _norm(tune.highlights) * 0.18
-    data["warmth"] = float(data.get("warmth", 0.0)) + _norm(tune.warmth) * 0.28
-    data["clarity"] = float(data.get("clarity", 0.0)) + _norm(tune.clarity) * 0.14
-    data["contrast"] = float(data.get("contrast", 0.0)) + _norm(tune.clarity) * 0.06
-    data["vibrance"] = float(data.get("vibrance", 0.0)) + _norm(tune.light) * 0.08
+    data["shadow_lift"] = float(data.get("shadow_lift", 0.0)) + _norm(tune.shadows) * 0.32
+    data["highlight_recovery"] = float(data.get("highlight_recovery", 0.0)) + _norm(tune.highlights) * 0.34
+    data["warmth"] = float(data.get("warmth", 0.0)) + _norm(tune.warmth) * 0.48
+    data["clarity"] = float(data.get("clarity", 0.0)) + _norm(tune.clarity) * 0.24
+    data["texture"] = float(data.get("texture", 0.0)) + _norm(tune.clarity) * 0.16
+    data["contrast"] = float(data.get("contrast", 0.0)) + _norm(tune.clarity) * 0.12
+    data["vibrance"] = float(data.get("vibrance", 0.0)) + _norm(tune.light) * 0.20
+    data["hsl_selective"] = float(data.get("hsl_selective", 0.0)) + _norm(tune.light) * 0.22
+    data["exposure_stops"] = float(data.get("exposure_stops", 0.0)) + _norm(tune.light) * 0.42
+    data["sharpen"] = float(data.get("sharpen", 0.0)) + _norm(tune.detail) * 0.30
+    data["whites"] = float(data.get("whites", 0.0)) + max(0.0, _norm(tune.highlights)) * 0.12
+    data["blacks"] = float(data.get("blacks", 0.0)) + _norm(tune.shadows) * 0.10
     return DevelopRecipe(**data)

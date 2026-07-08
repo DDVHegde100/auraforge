@@ -25,7 +25,7 @@ class CacheStats:
 
 
 class PreviewCache:
-    def __init__(self, max_entries: int = 32) -> None:
+    def __init__(self, max_entries: int = 48) -> None:
         self.max_entries = max_entries
         self._data: OrderedDict[str, dict[str, Any]] = OrderedDict()
         self.stats = CacheStats(max_size=max_entries)

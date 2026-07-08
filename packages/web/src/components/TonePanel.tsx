@@ -1,19 +1,19 @@
 import type { TuneState } from "../lib/tune";
 
 type SliderDef = {
-  key: keyof TuneState;
+  key: keyof TuneState | "strength";
   label: string;
-  hint: string;
 };
 
 const SLIDERS: SliderDef[] = [
-  { key: "clarity", label: "clarity", hint: "local contrast & punch" },
-  { key: "detail", label: "detail / upscale", hint: "edge-aware sharpen + micro-upscale" },
-  { key: "light", label: "light sculpt", hint: "relight zones + glow" },
-  { key: "shadows", label: "shadows", hint: "lift left · crush right" },
-  { key: "highlights", label: "highlights", hint: "recover left · bloom right" },
-  { key: "warmth", label: "warmth", hint: "cool left · warm right" },
-  { key: "lookAmount", label: "filter strength", hint: "grade + camera + signature" },
+  { key: "strength", label: "AI Enhance" },
+  { key: "lookAmount", label: "Filter Strength" },
+  { key: "clarity", label: "Clarity" },
+  { key: "detail", label: "Detail" },
+  { key: "light", label: "Light" },
+  { key: "shadows", label: "Shadows" },
+  { key: "highlights", label: "Highlights" },
+  { key: "warmth", label: "Warmth" },
 ];
 
 type Props = {
@@ -24,44 +24,41 @@ type Props = {
   onTune: (key: keyof TuneState, v: number) => void;
 };
 
+function sliderValue(key: SliderDef["key"], tune: TuneState, strength: number) {
+  return key === "strength" ? strength : tune[key];
+}
+
 export function TonePanel({ tune, strength, live, onStrength, onTune }: Props) {
   return (
-    <section className="enhance-controls tone-panel">
-      <div className="tone-header">
-        <p className="section-label">live tone</p>
-        {live && <span className="live-pill">updating…</span>}
-      </div>
-
-      <label className="slider-label">
-        ai enhance
-        <input
-          type="range"
-          min={0}
-          max={100}
-          value={strength}
-          onChange={(e) => onStrength(Number(e.target.value))}
-        />
-        <span className="slider-value">{strength}</span>
-      </label>
-
-      <div className="tone-grid">
-        {SLIDERS.map((s) => (
-          <label key={s.key} className="slider-label tone-slider">
-            <span className="tone-slider-top">
+    <div className="tone-panel-studio">
+      {live && (
+        <div className="tone-live-bar">
+          <span className="live-pill">updating preview…</span>
+        </div>
+      )}
+      {SLIDERS.map((s) => {
+        const val = sliderValue(s.key, tune, strength);
+        const onChange = (v: number) => {
+          if (s.key === "strength") onStrength(v);
+          else onTune(s.key, v);
+        };
+        return (
+          <label key={s.key} className="studio-slider">
+            <div className="studio-slider-head">
               <span>{s.label}</span>
-              <span className="slider-value">{tune[s.key]}</span>
-            </span>
+              <span className="studio-slider-val">{val}</span>
+            </div>
             <input
               type="range"
               min={0}
               max={100}
-              value={tune[s.key]}
-              onChange={(e) => onTune(s.key, Number(e.target.value))}
+              value={val}
+              onChange={(e) => onChange(Number(e.target.value))}
+              onInput={(e) => onChange(Number((e.target as HTMLInputElement).value))}
             />
-            <span className="tone-hint">{s.hint}</span>
           </label>
-        ))}
-      </div>
-    </section>
+        );
+      })}
+    </div>
   );
 }

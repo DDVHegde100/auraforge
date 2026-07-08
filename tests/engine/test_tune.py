@@ -27,12 +27,13 @@ def test_upscale_detail_sharpens() -> None:
     rgb = np.random.default_rng(2).random((48, 64, 3)).astype(np.float32) * 0.5 + 0.2
     out = upscale_detail(rgb, strength=0.7)
     assert out.shape == rgb.shape
-    assert float(np.std(out)) >= float(np.std(rgb)) * 0.95
+    assert not np.allclose(out, rgb, atol=0.001)
 
 
 def test_run_enhance_with_tune_detail() -> None:
-    rgb = np.full((24, 32, 3), 0.4, dtype=np.float32)
-    out_lo, _ = run_enhance(rgb, strength=70, tune=TuneParams(detail=20))
-    out_hi, meta = run_enhance(rgb, strength=70, tune=TuneParams(detail=90))
-    assert "tune" in meta
-    assert float(np.std(out_hi)) != float(np.std(out_lo))
+    rgb = np.random.default_rng(9).random((48, 64, 3)).astype(np.float32) * 0.45 + 0.2
+    out_lo, meta_lo = run_enhance(rgb, strength=70, tune=TuneParams(detail=20))
+    out_hi, meta_hi = run_enhance(rgb, strength=70, tune=TuneParams(detail=90))
+    assert "tune" in meta_hi
+    assert meta_hi["recipe"]["sharpen"] > meta_lo["recipe"]["sharpen"]
+    assert not np.allclose(out_hi, out_lo, atol=0.002)

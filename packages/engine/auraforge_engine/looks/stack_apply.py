@@ -23,12 +23,14 @@ from auraforge_engine.effects import (
     sepia_tone,
     soft_haze,
     split_tone,
-    upscale_detail,
     vcr_tape,
 )
 from auraforge_engine.enhance.pipeline import apply_recipe
 from auraforge_engine.enhance.recipe import DevelopRecipe
 from auraforge_engine.schema import Look
+
+# Grades/cameras/signatures were authored conservatively — boost so Filter Strength feels like Luminar.
+LOOK_GAIN = 1.75
 
 _APPLY_ORDER = (
     "barrel_distort",
@@ -76,21 +78,28 @@ def _handlers() -> dict[str, Callable[[np.ndarray, dict[str, Any]], np.ndarray]]
 
 
 def _scale_cfg(key: str, cfg: dict[str, Any], t: float) -> dict[str, Any]:
-    if t >= 1.0:
+    if t >= 1.0 and LOOK_GAIN <= 1.0:
         return cfg
+    eff = t * LOOK_GAIN
     if key == "develop":
-        return {k: float(v) * t for k, v in cfg.items() if isinstance(v, (int, float))}
+        return {k: float(v) * eff for k, v in cfg.items() if isinstance(v, (int, float))}
     if key == "color_matrix":
         scaled = dict(cfg)
-        if "strength" in scaled:
-            scaled["strength"] = float(scaled["strength"]) * t
-        else:
-            scaled["strength"] = t
+        base = float(scaled.get("strength", 1.0))
+        scaled["strength"] = base * eff
         return scaled
+    scaled = dict(cfg)
+    hit = False
     for field in ("strength", "amount", "intensity", "opacity"):
-        if field in cfg:
-            return {**cfg, field: float(cfg[field]) * t}
-    return cfg
+        if field in scaled:
+            scaled[field] = float(scaled[field]) * eff
+            hit = True
+    if not hit:
+        for field in ("lift", "desaturate", "warmth", "vibrance", "contrast"):
+            if field in scaled and isinstance(scaled[field], (int, float)):
+                scaled[field] = float(scaled[field]) * eff
+                hit = True
+    return scaled if hit else cfg
 
 
 def apply_look_stack(rgb: np.ndarray, look: Look, *, strength: float = 1.0) -> np.ndarray:
@@ -105,14 +114,4 @@ def apply_look_stack(rgb: np.ndarray, look: Look, *, strength: float = 1.0) -> n
         if not cfg or not isinstance(cfg, dict):
             continue
         out = handlers[key](out, _scale_cfg(key, cfg, t))
-    light_base = {"camera": 0.62, "signature": 0.48, "grade": 0.36}.get(look.kind, 0.30)
-    if light_base > 0 and t > 0:
-        out = light_remap(
-            out,
-            strength=light_base * t,
-            shadow_lift=0.10 * t,
-            highlight_glow=0.16 * t,
-            mid_punch=0.08 * t,
-        )
-        out = upscale_detail(out, strength=0.18 * t, micro_scale=1.08 + 0.06 * t)
     return np.clip(out, 0.0, None)

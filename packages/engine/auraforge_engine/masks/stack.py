@@ -4,12 +4,11 @@ from __future__ import annotations
 
 import numpy as np
 
-from auraforge_engine.masks.feather import feather_mask
-from auraforge_engine.masks.onnx_sky import resolve_sky_mask
-from auraforge_engine.masks.skin import skin_soft_mask
+from auraforge_engine.masks.build import MaskPack, build_masks
+from auraforge_engine.masks.portrait import apply_portrait_polish
 from auraforge_engine.masks.skin_protect import apply_skin_protect
 from auraforge_engine.masks.sky_tone import apply_sky_tone
-from auraforge_engine.masks.subject import apply_subject_lightness, subject_mask
+from auraforge_engine.masks.subject import apply_subject_lightness
 
 
 def apply_mask_stack(
@@ -19,36 +18,53 @@ def apply_mask_stack(
     *,
     use_onnx_sky: bool = False,
     light_boost: float = 1.0,
+    masks: MaskPack | None = None,
 ) -> tuple[np.ndarray, dict]:
-    """Sky pop + skin protect + gentle subject lift."""
+    """Sky pop + skin protect + subject lift + portrait polish."""
     meta: dict = {"sky_applied": False, "skin_protect_applied": False, "subject_lift_applied": False}
 
+    pack = masks if masks is not None else build_masks(rgb, use_onnx_sky=use_onnx_sky)
+    meta["sky_mask_source"] = pack.sky_source
+
     sky_info = analysis.get("sky", {})
-    if sky_info.get("sky_detected") or float(sky_info.get("sky_score", 0.0)) >= 0.18:
-        sky_m, source = resolve_sky_mask(rgb, use_onnx=use_onnx_sky)
-        sky_m = feather_mask(sky_m, sigma=10.0)
-        strength = min(1.35, (0.65 + float(sky_info.get("sky_score", 0.0))) * light_boost)
+    if sky_info.get("sky_detected") or float(sky_info.get("sky_score", 0.0)) >= 0.16:
+        strength = min(1.65, (0.82 + float(sky_info.get("sky_score", 0.0))) * light_boost)
         enhanced = apply_sky_tone(
             enhanced,
-            sky_m,
-            dehaze=0.18 * strength,
-            vibrance=0.14 * strength,
+            pack.sky,
+            dehaze=0.28 * strength,
+            vibrance=0.24 * strength,
             warmth=-0.06 * strength,
         )
         meta["sky_applied"] = True
-        meta["sky_mask_source"] = source
 
     skin_info = analysis.get("skin", {})
-    skin_m = skin_soft_mask(rgb)
-    if skin_info.get("skin_detected") or float(skin_info.get("skin_score", 0.0)) >= 0.06:
-        protect = min(0.75, 0.35 + float(skin_info.get("skin_score", 0.0)))
-        enhanced = apply_skin_protect(enhanced, rgb, skin_m, strength=protect)
+    if skin_info.get("skin_detected") or float(skin_info.get("skin_score", 0.0)) >= 0.05:
+        protect = min(0.58, 0.28 + float(skin_info.get("skin_score", 0.0)))
+        enhanced = apply_skin_protect(enhanced, rgb, pack.skin, strength=protect)
         meta["skin_protect_applied"] = True
 
     content = analysis.get("content", {}).get("content_class", "general")
-    if content == "portrait" or float(skin_info.get("skin_score", 0.0)) >= 0.10:
-        subj = subject_mask(rgb, skin_m)
-        enhanced = apply_subject_lightness(enhanced, subj, amount=0.09 * light_boost)
+    skin_score = float(skin_info.get("skin_score", 0.0))
+    saliency_mean = float(analysis.get("saliency", {}).get("saliency_mean", 0.0))
+
+    if content == "portrait" or skin_score >= 0.09:
+        enhanced = apply_subject_lightness(enhanced, pack.subject, amount=0.12 * light_boost)
+        enhanced = apply_portrait_polish(
+            enhanced,
+            rgb,
+            pack.skin,
+            pack.subject,
+            strength=0.55 + skin_score * 0.45,
+        )
+        meta["subject_lift_applied"] = True
+        meta["portrait_polish"] = True
+    elif saliency_mean >= 0.18:
+        enhanced = apply_subject_lightness(
+            enhanced,
+            pack.subject,
+            amount=0.08 * light_boost * min(1.0, saliency_mean * 1.35),
+        )
         meta["subject_lift_applied"] = True
 
     return enhanced, meta

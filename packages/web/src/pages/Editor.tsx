@@ -1,7 +1,19 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { ErrorBanner } from "../components/ErrorBanner";
-import { UploadPanel } from "../components/UploadPanel";
+import { StudioCanvas } from "../components/StudioCanvas";
+import { LooksPanel } from "../components/LooksPanel";
+import {
+  IconCamera,
+  IconEnhance,
+  IconExport,
+  IconFolder,
+  IconFx,
+  IconPalette,
+  IconSliders,
+  IconUndo,
+  IconUpload,
+} from "../components/icons";
 import { TonePanel } from "../components/TonePanel";
+import { ErrorBanner } from "../components/ErrorBanner";
 import { appendTuneToForm, DEFAULT_TUNE, type TuneState } from "../lib/tune";
 import {
   fileMeta,
@@ -40,6 +52,11 @@ type HistorySnap = {
 const MODES: EnhanceMode[] = ["natural", "portrait", "land", "food", "glow"];
 const GRADE_TAGS = ["all", "portrait", "food", "landscape", "street", "wedding", "cinema", "still"];
 const CAMERA_TAGS = ["all", "film", "digital", "vintage", "cinema", "flash", "fuji", "lomo"];
+const PREVIEW_LIVE = 1280;
+const PREVIEW_HD = 1800;
+const LIVE_DEBOUNCE_MS = 28;
+
+type SidebarTab = "enhance" | "tone" | "looks" | "cameras" | "fx" | "settings";
 
 function formatApiError(err: unknown, hint?: string | null): string {
   const base = err instanceof Error ? err.message : String(err);
@@ -71,13 +88,15 @@ export default function Editor() {
   const [dragOver, setDragOver] = useState(false);
   const [hasImage, setHasImage] = useState(false);
   const [analysis, setAnalysis] = useState<AnalysisSummary | null>(null);
-  const [strength, setStrength] = useState(50);
+  const [strength, setStrength] = useState(80);
   const [tune, setTune] = useState<TuneState>(DEFAULT_TUNE);
   const [isLiveRender, setIsLiveRender] = useState(false);
   const [mode, setMode] = useState<EnhanceMode>("natural");
   const [showMasks, setShowMasks] = useState(false);
   const [proSafe, setProSafe] = useState(true);
   const [useA6000, setUseA6000] = useState(false);
+  const [hdPreview, setHdPreview] = useState(false);
+  const [sidebarTab, setSidebarTab] = useState<SidebarTab>("enhance");
   const [grades, setGrades] = useState<LookItem[]>([]);
   const [cameras, setCameras] = useState<LookItem[]>([]);
   const [signatures, setSignatures] = useState<LookItem[]>([]);
@@ -108,8 +127,13 @@ export default function Editor() {
   const [errorHint, setErrorHint] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const fileRef = useRef<File | null>(null);
+  const sessionIdRef = useRef<string | null>(null);
+  const enhanceAbortRef = useRef<AbortController | null>(null);
+  const enhanceSeqRef = useRef(0);
   const localPreviewRef = useRef<string | null>(null);
   const debounceRef = useRef<number | null>(null);
+  const previewMaxRef = useRef(PREVIEW_LIVE);
+  previewMaxRef.current = hdPreview ? PREVIEW_HD : PREVIEW_LIVE;
 
   const revokeLocalPreview = useCallback(() => {
     if (localPreviewRef.current) {
@@ -173,10 +197,15 @@ export default function Editor() {
 
   const runEnhance = useCallback(
     async (
-      file: File,
+      file: File | null,
       snap: HistorySnap,
       opts?: { skipHistory?: boolean; trackUpload?: boolean; live?: boolean },
     ) => {
+      const seq = ++enhanceSeqRef.current;
+      if (enhanceAbortRef.current) enhanceAbortRef.current.abort();
+      const abort = new AbortController();
+      enhanceAbortRef.current = abort;
+
       if (opts?.live) setIsLiveRender(true);
       else if (opts?.trackUpload) setUploadStep("uploading_enhance");
       else setBusy(true);
@@ -185,14 +214,16 @@ export default function Editor() {
       const t0 = performance.now();
       try {
         if (snap.showMasks) {
+          if (!file) return;
           const body = new FormData();
           body.append("file", file);
-          const res = await fetch("/api/process/masks", { method: "POST", body });
+          const res = await fetch("/api/process/masks", { method: "POST", body, signal: abort.signal });
           if (!res.ok) {
             const err = await parseApiError(res, "mask preview failed");
             throw new Error(formatApiError(err.message, err.hint));
           }
           const data = await res.json();
+          if (seq !== enhanceSeqRef.current) return;
           setAfterUrl(data.preview);
           setStatus("mask debug · cyan sky · magenta skin · yellow subject");
           setOffline(false);
@@ -202,8 +233,18 @@ export default function Editor() {
           }
           return;
         }
+
         const body = new FormData();
-        body.append("file", file);
+        const live = Boolean(opts?.live);
+        const sessionId = sessionIdRef.current;
+        if (sessionId && (live || !file)) {
+          body.append("session_id", sessionId);
+        } else if (file) {
+          body.append("file", file);
+        } else {
+          throw new Error("no image session — re-upload");
+        }
+        body.append("max_size", live ? String(previewMaxRef.current) : "2048");
         body.append("strength", String(snap.strength));
         body.append("mode", snap.mode);
         body.append("pro_safe", snap.proSafe ? "true" : "false");
@@ -212,12 +253,19 @@ export default function Editor() {
         if (snap.cameraId) body.append("camera_id", snap.cameraId);
         if (snap.signatureId) body.append("signature_id", snap.signatureId);
         appendTuneToForm(body, snap.tune);
-        const res = await fetch("/api/process/enhance", { method: "POST", body });
+
+        const res = await fetch("/api/process/enhance", {
+          method: "POST",
+          body,
+          signal: abort.signal,
+        });
         if (!res.ok) {
           const err = await parseApiError(res, "enhance failed");
           throw new Error(formatApiError(err.message, err.hint));
         }
         const data = await res.json();
+        if (seq !== enhanceSeqRef.current) return;
+
         setAfterUrl(data.preview);
         setAnalysis(data.analysis ?? null);
         setOffline(false);
@@ -226,23 +274,26 @@ export default function Editor() {
         const clamped = data.signature_clamped ? " · clamped" : "";
         const cached = data.cached ? " · cached" : "";
         const a6000 = data.a6000_profile ? " · a6000" : "";
+        const ms = Math.round(performance.now() - t0);
+        setEnhanceMs(ms);
         setStatus(
-          `enhance ${snap.strength}% · ${snap.mode} · cam ${cam} · sig ${sig}${clamped}${cached}${a6000}`,
+          `enhance ${snap.strength}% · ${snap.mode} · cam ${cam} · sig ${sig}${clamped}${cached}${a6000} · ${ms}ms`,
         );
         if (!opts?.skipHistory) pushHistory(snap);
-        if (opts?.trackUpload) {
-          setEnhanceMs(Math.round(performance.now() - t0));
-          setUploadStep("done");
-        }
+        if (opts?.trackUpload) setUploadStep("done");
       } catch (err) {
+        if (err instanceof DOMException && err.name === "AbortError") return;
         const msg = err instanceof Error ? err.message : "enhance failed";
+        if (seq !== enhanceSeqRef.current) return;
         setErrorMsg(msg);
         setStatus(msg);
         if (opts?.trackUpload) setUploadStep("error");
         if (msg.includes("fetch") || msg.includes("network") || msg.includes("offline")) setOffline(true);
       } finally {
-        if (opts?.live) setIsLiveRender(false);
-        else setBusy(false);
+        if (seq === enhanceSeqRef.current) {
+          if (opts?.live) setIsLiveRender(false);
+          else setBusy(false);
+        }
       }
     },
     [pushHistory],
@@ -265,12 +316,11 @@ export default function Editor() {
 
   const scheduleEnhance = useCallback(
     (snap: HistorySnap) => {
-      const file = fileRef.current;
-      if (!file) return;
+      if (!sessionIdRef.current && !fileRef.current) return;
       if (debounceRef.current) window.clearTimeout(debounceRef.current);
       debounceRef.current = window.setTimeout(() => {
-        void runEnhance(file, snap, { live: true });
-      }, 90);
+        void runEnhance(fileRef.current, snap, { live: true });
+      }, LIVE_DEBOUNCE_MS);
     },
     [runEnhance],
   );
@@ -288,6 +338,7 @@ export default function Editor() {
       setBeforeUrl(null);
       setAfterUrl(null);
       setHasImage(false);
+      sessionIdRef.current = null;
 
       const validation = validateFile(file);
       if (validation) {
@@ -318,13 +369,16 @@ export default function Editor() {
         const tPreview = performance.now();
         const body = new FormData();
         body.append("file", uploadFile);
-        const res = await fetch("/api/process/preview", { method: "POST", body });
+        body.append("max_size", String(previewMaxRef.current));
+        body.append("use_a6000_profile", useA6000 ? "true" : "false");
+        const res = await fetch("/api/process/open", { method: "POST", body });
         if (!res.ok) {
-          const err = await parseApiError(res, "preview failed");
+          const err = await parseApiError(res, "open failed");
           setErrorHint(err.hint ?? null);
           throw new Error(err.message);
         }
         const data = await res.json();
+        sessionIdRef.current = data.session_id ?? null;
         setPreviewMs(Math.round(performance.now() - tPreview));
         setBeforeUrl(data.preview);
         setServerWidth(data.width ?? null);
@@ -334,7 +388,7 @@ export default function Editor() {
         setHistory([]);
 
         const snap = currentSnap();
-        await runEnhance(uploadFile, snap, { trackUpload: true });
+        await runEnhance(null, snap, { trackUpload: true });
       } catch (err) {
         const msg = err instanceof Error ? err.message : "upload failed";
         setErrorMsg(msg);
@@ -348,7 +402,7 @@ export default function Editor() {
         setBusy(false);
       }
     },
-    [currentSnap, revokeLocalPreview, runEnhance],
+    [currentSnap, revokeLocalPreview, runEnhance, useA6000],
   );
 
   const pickFile = useCallback(
@@ -375,17 +429,19 @@ export default function Editor() {
     setUseA6000(prev.useA6000);
     setTune(prev.tune);
     const file = fileRef.current;
-    if (file) void runEnhance(file, prev, { skipHistory: true });
+    if (sessionIdRef.current || file) void runEnhance(file, prev, { skipHistory: true });
   }, [history, runEnhance]);
 
   const exportImage = useCallback(async () => {
     const file = fileRef.current;
-    if (!file) return;
+    const sessionId = sessionIdRef.current;
+    if (!sessionId && !file) return;
     setBusy(true);
     try {
       const snap = currentSnap();
       const body = new FormData();
-      body.append("file", file);
+      if (sessionId) body.append("session_id", sessionId);
+      else if (file) body.append("file", file);
       body.append("strength", String(snap.strength));
       body.append("mode", snap.mode);
       body.append("fmt", snap.showMasks ? "jpeg" : exportFormat);
@@ -483,16 +539,6 @@ export default function Editor() {
 
   const displayBefore = beforeUrl || localPreview;
 
-  const filteredGrades =
-    gradeTag === "all"
-      ? grades
-      : grades.filter((g) => g.tags.map((t) => t.toLowerCase()).includes(gradeTag));
-
-  const filteredCameras =
-    cameraTag === "all"
-      ? cameras
-      : cameras.filter((c) => c.tags.map((t) => t.toLowerCase()).includes(cameraTag));
-
   const applySnap = (partial: Partial<HistorySnap>) => {
     const snap: HistorySnap = { ...currentSnap(), ...partial };
     if (partial.strength !== undefined) setStrength(partial.strength);
@@ -508,50 +554,48 @@ export default function Editor() {
   };
 
   return (
-    <main className="shell shell-wide editor-shell">
-      <header className="editor-header">
-        <div>
+    <div className="studio-app">
+      <header className="studio-topbar">
+        <div className="studio-brand">
           <h1>auraforge</h1>
-          <p className="tag">my version of luminar neo but free</p>
+          <span className="studio-tag">local studio</span>
         </div>
-        <nav className="editor-nav">
+        <nav className="studio-nav">
           <a href="/" className="active">
             editor
           </a>
           <a href="/showcase">showcase</a>
           <a href="/research">research</a>
         </nav>
-      </header>
-
-      <div className="editor-status-row">
-        <p className="muted">{status}</p>
-        {lookCount !== null && <p className="muted">{lookCount} looks</p>}
-        {cacheHits !== null && <p className="muted">cache hits {cacheHits}</p>}
-        <p className="muted shortcuts-hint">⌘Z undo · ⌘E export · ⌘O open · ←→ scrub</p>
-      </div>
-
-      {(offline || errorMsg) && (
-        <ErrorBanner
-          message={errorMsg || "api offline — run ./dev.sh"}
-          offline={offline}
-          onRetry={() => void refreshHealth()}
-        />
-      )}
-
-      <div
-        className={`dropzone ${dragOver ? "active" : ""} ${busy ? "busy" : ""}`}
-        onDragOver={(e) => {
-          e.preventDefault();
-          e.stopPropagation();
-          setDragOver(true);
-        }}
-        onDragLeave={() => setDragOver(false)}
-        onDrop={onDrop}
-      >
-        <p>{busy ? "processing your photo…" : "drop a local photo here"}</p>
-        <p className="dropzone-hint">JPEG · PNG · HEIC · TIFF · ARW · up to ~80 MB</p>
-        <label className="pick">
-          or choose file
+        <div className="studio-topbar-actions">
+          <button type="button" className="studio-icon-btn" title="Open (⌘O)" onClick={() => fileInputRef.current?.click()}>
+            <IconUpload size={18} />
+          </button>
+          <button
+            type="button"
+            className="studio-icon-btn"
+            title="Undo (⌘Z)"
+            disabled={history.length < 2}
+            onClick={undo}
+          >
+            <IconUndo size={18} />
+          </button>
+          <select
+            className="studio-select"
+            value={exportFormat}
+            onChange={(e) => setExportFormat(e.target.value as ExportFormat)}
+          >
+            <option value="jpeg">JPEG</option>
+            <option value="tiff">TIFF 16-bit</option>
+          </select>
+          <button
+            type="button"
+            className="studio-btn primary"
+            disabled={!hasImage || busy}
+            onClick={() => void exportImage()}
+          >
+            <IconExport size={16} /> Export
+          </button>
           <input
             ref={fileInputRef}
             type="file"
@@ -562,248 +606,274 @@ export default function Editor() {
               e.target.value = "";
             }}
           />
-        </label>
-      </div>
+        </div>
+      </header>
 
-      <UploadPanel
-        step={uploadStep}
-        meta={uploadMeta}
-        convertNote={convertNote}
-        localPreview={localPreview}
-        serverWidth={serverWidth}
-        serverHeight={serverHeight}
-        previewMs={previewMs}
-        enhanceMs={enhanceMs}
-        error={errorMsg}
-        hint={errorHint}
-      />
-
-      {fileName && uploadStep !== "idle" && <p className="muted">{fileName}</p>}
-
-      <section className="batch-panel">
-        <p className="section-label">batch folder (local path)</p>
-        <div className="batch-row">
-          <input
-            className="batch-input"
-            type="text"
-            placeholder="/Users/you/Photos/inbox"
-            value={batchFolder}
-            onChange={(e) => setBatchFolder(e.target.value)}
+      {(offline || errorMsg) && (
+        <div className="studio-banner-wrap">
+          <ErrorBanner
+            message={errorMsg || "api offline — run ./dev.sh"}
+            offline={offline}
+            onRetry={() => void refreshHealth()}
           />
-          <input
-            className="batch-input"
-            type="text"
-            placeholder="output dir (optional)"
-            value={batchOut}
-            onChange={(e) => setBatchOut(e.target.value)}
-          />
-          <button type="button" className="tool-btn primary" disabled={busy || !batchFolder.trim()} onClick={() => void runBatch()}>
-            run batch
-          </button>
         </div>
-        {batchResult && <p className="muted">{batchResult}</p>}
-      </section>
-
-      <section className="grade-browser">
-        <p className="section-label">grades</p>
-        <div className="mode-row">
-          {GRADE_TAGS.map((tag) => (
-            <button
-              key={tag}
-              type="button"
-              className={tag === gradeTag ? "mode active" : "mode"}
-              onClick={() => {
-                setGradeTag(tag);
-                void loadGrades(tag);
-              }}
-            >
-              {tag}
-            </button>
-          ))}
-        </div>
-        <div className="grade-list">
-          <button
-            type="button"
-            className={selectedGrade === null ? "grade-chip active" : "grade-chip"}
-            onClick={() => applySnap({ gradeId: null })}
-          >
-            none
-          </button>
-          {filteredGrades.map((g) => (
-            <button
-              key={g.id}
-              type="button"
-              className={selectedGrade === g.id ? "grade-chip active" : "grade-chip"}
-              onClick={() => applySnap({ gradeId: g.id })}
-            >
-              {g.name}
-            </button>
-          ))}
-        </div>
-      </section>
-
-      <section className="grade-browser">
-        <p className="section-label">cameras</p>
-        <div className="mode-row">
-          {CAMERA_TAGS.map((tag) => (
-            <button
-              key={tag}
-              type="button"
-              className={tag === cameraTag ? "mode active" : "mode"}
-              onClick={() => {
-                setCameraTag(tag);
-                void loadCameras(tag);
-              }}
-            >
-              {tag}
-            </button>
-          ))}
-        </div>
-        <div className="cam-gallery">
-          <button
-            type="button"
-            className={selectedCamera === null ? "cam-thumb active" : "cam-thumb"}
-            onClick={() => applySnap({ cameraId: null })}
-          >
-            none
-          </button>
-          {filteredCameras.map((c) => (
-            <button
-              key={c.id}
-              type="button"
-              className={selectedCamera === c.id ? "cam-thumb active" : "cam-thumb"}
-              onClick={() => applySnap({ cameraId: c.id })}
-            >
-              <span className="cam-name">{c.name}</span>
-            </button>
-          ))}
-        </div>
-      </section>
-
-      <section className="grade-browser">
-        <p className="section-label">signatures</p>
-        <div className="sig-gallery">
-          <button
-            type="button"
-            className={selectedSignature === null ? "sig-thumb active" : "sig-thumb"}
-            onClick={() => applySnap({ signatureId: null })}
-          >
-            none
-          </button>
-          {signatures.map((s) => (
-            <button
-              key={s.id}
-              type="button"
-              className={selectedSignature === s.id ? "sig-thumb active" : "sig-thumb"}
-              onClick={() => applySnap({ signatureId: s.id })}
-            >
-              <span className="sig-name">{s.name}</span>
-              {s.experimental && <span className="sig-badge">exp</span>}
-            </button>
-          ))}
-        </div>
-        <label className="mask-toggle">
-          <input
-            type="checkbox"
-            checked={proSafe}
-            onChange={(e) => applySnap({ proSafe: e.target.checked })}
-          />
-          pro-safe clamp (experimental sigs max 60%)
-        </label>
-        <label className="mask-toggle">
-          <input
-            type="checkbox"
-            checked={useA6000}
-            onChange={(e) => applySnap({ useA6000: e.target.checked })}
-          />
-          a6000 base profile (auto when EXIF says ILCE-6000)
-        </label>
-      </section>
-
-      {hasImage && (
-        <>
-          <TonePanel
-            tune={tune}
-            strength={strength}
-            live={isLiveRender}
-            onStrength={(v) => applySnap({ strength: v })}
-            onTune={(key, v) => applySnap({ tune: { ...tune, [key]: v } })}
-          />
-          <section className="enhance-controls">
-            <div className="mode-row">
-              {MODES.map((m) => (
-                <button
-                  key={m}
-                  type="button"
-                  className={m === mode ? "mode active" : "mode"}
-                  onClick={() => applySnap({ mode: m })}
-                >
-                  {m}
-                </button>
-              ))}
-            </div>
-            <label className="mask-toggle">
-              <input
-                type="checkbox"
-                checked={showMasks}
-                onChange={(e) => applySnap({ showMasks: e.target.checked })}
-              />
-              show mask debug overlay
-            </label>
-            <div className="toolbar-row">
-              <button type="button" className="tool-btn" disabled={history.length < 2} onClick={undo}>
-                undo
-              </button>
-              <select
-                className="export-select"
-                value={exportFormat}
-                onChange={(e) => setExportFormat(e.target.value as ExportFormat)}
-              >
-                <option value="jpeg">jpeg</option>
-                <option value="tiff">tiff 16-bit</option>
-              </select>
-              <button type="button" className="tool-btn primary" onClick={() => void exportImage()}>
-                export
-              </button>
-            </div>
-          </section>
-        </>
       )}
 
-      {hasImage && displayBefore && (
-        <section className="compare-section">
-          <p className="label">before / after</p>
-          {!afterUrl && uploadStep === "uploading_enhance" && (
-            <p className="muted compare-wait">running enhance pipeline…</p>
-          )}
-          <div className="compare-wrap">
-            {afterUrl ? (
-              <img src={afterUrl} alt="after" className="compare-img" />
-            ) : (
-              <img src={displayBefore} alt="processing" className="compare-img compare-dim" />
-            )}
-            <img
-              src={displayBefore}
-              alt="before"
-              className="compare-img compare-before"
-              style={{ clipPath: `inset(0 ${100 - scrub}% 0 0)` }}
-            />
+      <div className="studio-body">
+        <aside className="studio-sidebar">
+          <div className="sidebar-tabs">
+            <button
+              type="button"
+              className={sidebarTab === "enhance" ? "sidebar-tab active" : "sidebar-tab"}
+              onClick={() => setSidebarTab("enhance")}
+            >
+              <IconEnhance size={17} />
+              <span>Enhance</span>
+            </button>
+            <button
+              type="button"
+              className={sidebarTab === "tone" ? "sidebar-tab active" : "sidebar-tab"}
+              onClick={() => setSidebarTab("tone")}
+            >
+              <IconSliders size={17} />
+              <span>Tone</span>
+            </button>
+            <button
+              type="button"
+              className={sidebarTab === "looks" ? "sidebar-tab active" : "sidebar-tab"}
+              onClick={() => setSidebarTab("looks")}
+            >
+              <IconPalette size={17} />
+              <span>Looks</span>
+            </button>
+            <button
+              type="button"
+              className={sidebarTab === "cameras" ? "sidebar-tab active" : "sidebar-tab"}
+              onClick={() => setSidebarTab("cameras")}
+            >
+              <IconCamera size={17} />
+              <span>Cameras</span>
+            </button>
+            <button
+              type="button"
+              className={sidebarTab === "fx" ? "sidebar-tab active" : "sidebar-tab"}
+              onClick={() => setSidebarTab("fx")}
+            >
+              <IconFx size={17} />
+              <span>FX</span>
+            </button>
+            <button
+              type="button"
+              className={sidebarTab === "settings" ? "sidebar-tab active" : "sidebar-tab"}
+              onClick={() => setSidebarTab("settings")}
+            >
+              <IconFolder size={17} />
+              <span>More</span>
+            </button>
           </div>
-          <label className="slider-label scrub-label">
-            scrub
-            <input
-              type="range"
-              min={0}
-              max={100}
-              value={scrub}
-              onChange={(e) => setScrub(Number(e.target.value))}
-            />
-            <span className="slider-value">{scrub}</span>
-          </label>
-        </section>
-      )}
 
-      <DebugPanel data={analysis} />
-    </main>
+          <div className="sidebar-panel">
+            {sidebarTab === "enhance" && (
+              <>
+                <p className="panel-title">Enhance mode</p>
+                <div className="mode-grid">
+                  {MODES.map((m) => (
+                    <button
+                      key={m}
+                      type="button"
+                      className={m === mode ? "mode-pill active" : "mode-pill"}
+                      onClick={() => applySnap({ mode: m })}
+                    >
+                      {m}
+                    </button>
+                  ))}
+                </div>
+                <p className="panel-hint">All changes update the preview live.</p>
+              </>
+            )}
+
+            {sidebarTab === "tone" && (
+              <TonePanel
+                tune={tune}
+                strength={strength}
+                live={isLiveRender}
+                onStrength={(v) => applySnap({ strength: v })}
+                onTune={(key, v) => applySnap({ tune: { ...tune, [key]: v } })}
+              />
+            )}
+
+            {sidebarTab === "looks" && (
+              <LooksPanel
+                kind="grades"
+                items={grades}
+                tags={GRADE_TAGS}
+                activeTag={gradeTag}
+                selectedId={selectedGrade}
+                lookAmount={tune.lookAmount}
+                live={isLiveRender}
+                onTag={(tag) => {
+                  setGradeTag(tag);
+                  void loadGrades(tag);
+                }}
+                onSelect={(id) => applySnap({ gradeId: id })}
+                onLookAmount={(v) => applySnap({ tune: { ...tune, lookAmount: v } })}
+              />
+            )}
+
+            {sidebarTab === "cameras" && (
+              <LooksPanel
+                kind="cameras"
+                items={cameras}
+                tags={CAMERA_TAGS}
+                activeTag={cameraTag}
+                selectedId={selectedCamera}
+                lookAmount={tune.lookAmount}
+                live={isLiveRender}
+                onTag={(tag) => {
+                  setCameraTag(tag);
+                  void loadCameras(tag);
+                }}
+                onSelect={(id) => applySnap({ cameraId: id })}
+                onLookAmount={(v) => applySnap({ tune: { ...tune, lookAmount: v } })}
+              />
+            )}
+
+            {sidebarTab === "fx" && (
+              <LooksPanel
+                kind="signatures"
+                items={signatures}
+                tags={["all"]}
+                activeTag="all"
+                selectedId={selectedSignature}
+                lookAmount={tune.lookAmount}
+                live={isLiveRender}
+                onTag={() => {}}
+                onSelect={(id) => applySnap({ signatureId: id })}
+                onLookAmount={(v) => applySnap({ tune: { ...tune, lookAmount: v } })}
+              />
+            )}
+
+            {sidebarTab === "settings" && (
+              <div className="settings-panel">
+                <label className="studio-check">
+                  <input
+                    type="checkbox"
+                    checked={hdPreview}
+                    onChange={(e) => {
+                      setHdPreview(e.target.checked);
+                      window.setTimeout(() => scheduleEnhance(currentSnap()), 0);
+                    }}
+                  />
+                  HD preview ({PREVIEW_HD}px)
+                </label>
+                <label className="studio-check">
+                  <input
+                    type="checkbox"
+                    checked={showMasks}
+                    onChange={(e) => applySnap({ showMasks: e.target.checked })}
+                  />
+                  Mask debug overlay
+                </label>
+                <label className="studio-check">
+                  <input
+                    type="checkbox"
+                    checked={proSafe}
+                    onChange={(e) => applySnap({ proSafe: e.target.checked })}
+                  />
+                  Pro-safe signature clamp
+                </label>
+                <label className="studio-check">
+                  <input
+                    type="checkbox"
+                    checked={useA6000}
+                    onChange={(e) => applySnap({ useA6000: e.target.checked })}
+                  />
+                  a6000 base profile
+                </label>
+                <details className="studio-details">
+                  <summary>Batch folder</summary>
+                  <input
+                    className="studio-input"
+                    type="text"
+                    placeholder="/path/to/folder"
+                    value={batchFolder}
+                    onChange={(e) => setBatchFolder(e.target.value)}
+                  />
+                  <input
+                    className="studio-input"
+                    type="text"
+                    placeholder="output dir (optional)"
+                    value={batchOut}
+                    onChange={(e) => setBatchOut(e.target.value)}
+                  />
+                  <button
+                    type="button"
+                    className="studio-btn"
+                    disabled={busy || !batchFolder.trim()}
+                    onClick={() => void runBatch()}
+                  >
+                    Run batch
+                  </button>
+                  {batchResult && <p className="panel-hint">{batchResult}</p>}
+                </details>
+                {uploadStep !== "idle" && (
+                  <p className="panel-hint">
+                    {uploadStep === "done" ? "Ready" : uploadStep.replace(/_/g, " ")}
+                    {enhanceMs != null && ` · ${enhanceMs}ms`}
+                    {previewMs != null && ` · open ${previewMs}ms`}
+                  </p>
+                )}
+                {(uploadMeta || serverWidth != null) && (
+                  <div className="file-info-panel">
+                    {uploadMeta && (
+                      <p className="panel-hint">
+                        {uploadMeta.name} · {uploadMeta.sizeLabel}
+                      </p>
+                    )}
+                    {serverWidth != null && serverHeight != null && (
+                      <p className="panel-hint">
+                        {serverWidth}×{serverHeight}px
+                      </p>
+                    )}
+                    {convertNote && <p className="panel-hint">{convertNote}</p>}
+                    {cacheHits != null && <p className="panel-hint">cache hits {cacheHits}</p>}
+                  </div>
+                )}
+                {errorHint && uploadStep === "error" && <p className="panel-hint">{errorHint}</p>}
+                <DebugPanel data={analysis} />
+              </div>
+            )}
+          </div>
+
+          <footer className="sidebar-footer">
+            <span className="sidebar-status">{status}</span>
+            {lookCount != null && <span>{lookCount} looks</span>}
+          </footer>
+        </aside>
+
+        <StudioCanvas
+          hasImage={hasImage}
+          displayBefore={displayBefore}
+          afterUrl={afterUrl}
+          scrub={scrub}
+          onScrub={setScrub}
+          isLiveRender={isLiveRender}
+          enhanceMs={enhanceMs}
+          hdPreview={hdPreview}
+          previewMax={previewMaxRef.current}
+          busy={busy}
+          dragOver={dragOver}
+          fileName={fileName}
+          onDrop={onDrop}
+          onDragOver={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            setDragOver(true);
+          }}
+          onDragLeave={() => setDragOver(false)}
+          onPickFile={() => fileInputRef.current?.click()}
+        />
+      </div>
+    </div>
   );
 }

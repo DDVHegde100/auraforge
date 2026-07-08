@@ -1,3 +1,4 @@
+from auraforge_engine.masks.build import MaskPack, build_masks
 from auraforge_engine.masks.debug import render_mask_overlay
 from auraforge_engine.masks.feather import feather_mask
 from auraforge_engine.masks.onnx_sky import resolve_sky_mask, sky_mask_onnx
@@ -13,7 +14,9 @@ __all__ = [
     "apply_skin_protect",
     "apply_sky_tone",
     "apply_subject_lightness",
+    "build_masks",
     "feather_mask",
+    "MaskPack",
     "render_mask_overlay",
     "resolve_sky_mask",
     "skin_soft_mask",

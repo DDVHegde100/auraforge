@@ -34,7 +34,7 @@ def test_signature_pro_safe_clamp_in_stack() -> None:
         pro_safe=True,
     )
     assert meta.get("signature_clamped") is True
-    assert meta["signature_strength"] == 0.60
+    assert meta["signature_strength"] == 0.85
 
 
 def test_enhance_only_when_no_grade() -> None:

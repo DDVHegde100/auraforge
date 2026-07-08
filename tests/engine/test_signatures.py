@@ -17,7 +17,7 @@ def test_pro_safe_clamps_experimental() -> None:
     look = get_look("sig_thermal_spectrum")
     assert look is not None
     assert look.experimental
-    assert clamp_signature_strength(look, 1.0, pro_safe=True) == 0.60
+    assert clamp_signature_strength(look, 1.0, pro_safe=True) == 0.85
     assert clamp_signature_strength(look, 1.0, pro_safe=False) == 1.0
 
 

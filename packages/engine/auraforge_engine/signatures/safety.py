@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from auraforge_engine.schema import Look
 
-PRO_SAFE_MAX = 0.60
+PRO_SAFE_MAX = 0.85
 
 
 def clamp_signature_strength(look: Look, strength: float, *, pro_safe: bool = True) -> float:
