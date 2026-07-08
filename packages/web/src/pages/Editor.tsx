@@ -16,6 +16,9 @@ import { TonePanel } from "../components/TonePanel";
 import { ErrorBanner } from "../components/ErrorBanner";
 import { appendTuneToForm, DEFAULT_TUNE, type TuneState } from "../lib/tune";
 import { apiFetch } from "../lib/api";
+import { exportImage as runExport, triggerDownload, type ExportProgress } from "../lib/export";
+import type { CameraItem } from "../lib/cameras";
+import { CameraPanel } from "../components/CameraPanel";
 import {
   fileMeta,
   normalizeForUpload,
@@ -36,6 +39,8 @@ type LookItem = {
   kind: string;
   tags: string[];
   experimental?: boolean;
+  meta?: CameraItem["meta"];
+  notes?: string;
 };
 
 type HistorySnap = {
@@ -52,7 +57,7 @@ type HistorySnap = {
 
 const MODES: EnhanceMode[] = ["natural", "portrait", "land", "food", "glow"];
 const GRADE_TAGS = ["all", "portrait", "food", "landscape", "street", "wedding", "cinema", "still"];
-const CAMERA_TAGS = ["all", "film", "digital", "vintage", "cinema", "flash", "fuji", "lomo"];
+const CAMERA_TAGS = ["all", "pro", "film", "digital", "vintage", "cinema", "flash", "fuji", "lomo"];
 const PREVIEW_LIVE = 1280;
 const PREVIEW_HD = 1800;
 const LIVE_DEBOUNCE_MS = 28;
@@ -99,7 +104,7 @@ export default function Editor() {
   const [hdPreview, setHdPreview] = useState(false);
   const [sidebarTab, setSidebarTab] = useState<SidebarTab>("enhance");
   const [grades, setGrades] = useState<LookItem[]>([]);
-  const [cameras, setCameras] = useState<LookItem[]>([]);
+  const [cameras, setCameras] = useState<CameraItem[]>([]);
   const [signatures, setSignatures] = useState<LookItem[]>([]);
   const [gradeTag, setGradeTag] = useState("all");
   const [cameraTag, setCameraTag] = useState("all");
@@ -125,6 +130,7 @@ export default function Editor() {
   const [serverHeight, setServerHeight] = useState<number | null>(null);
   const [previewMs, setPreviewMs] = useState<number | null>(null);
   const [enhanceMs, setEnhanceMs] = useState<number | null>(null);
+  const [exportProgress, setExportProgress] = useState<ExportProgress | null>(null);
   const [errorHint, setErrorHint] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const fileRef = useRef<File | null>(null);
@@ -438,39 +444,35 @@ export default function Editor() {
     const sessionId = sessionIdRef.current;
     if (!sessionId && !file) return;
     setBusy(true);
+    setExportProgress({ phase: "starting", progress: 0, message: "starting" });
     try {
       const snap = currentSnap();
-      const body = new FormData();
-      if (sessionId) body.append("session_id", sessionId);
-      else if (file) body.append("file", file);
-      body.append("strength", String(snap.strength));
-      body.append("mode", snap.mode);
-      body.append("fmt", snap.showMasks ? "jpeg" : exportFormat);
-      body.append("pro_safe", snap.proSafe ? "true" : "false");
-      body.append("use_a6000_profile", snap.useA6000 ? "true" : "false");
-      if (snap.gradeId) body.append("grade_id", snap.gradeId);
-      if (snap.cameraId) body.append("camera_id", snap.cameraId);
-      if (snap.signatureId) body.append("signature_id", snap.signatureId);
-      appendTuneToForm(body, snap.tune);
-      const res = await apiFetch("/process/export", { method: "POST", body });
-      if (!res.ok) {
-        const err = await res.json();
-        throw new Error(err.detail || "export failed");
-      }
-      const blob = await res.blob();
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = exportFormat === "tiff" ? "auraforge.tif" : "auraforge.jpg";
-      a.click();
-      URL.revokeObjectURL(url);
-      setStatus(`exported ${exportFormat}`);
+      const pixels = (serverWidth ?? 0) * (serverHeight ?? 0);
+      const { blob, filename } = await runExport(
+        {
+          sessionId,
+          strength: snap.strength,
+          mode: snap.mode,
+          gradeId: snap.gradeId,
+          cameraId: snap.cameraId,
+          signatureId: snap.signatureId,
+          format: exportFormat,
+          tune: snap.tune,
+          proSafe: snap.proSafe,
+          useA6000: snap.useA6000,
+          pixelCount: pixels,
+        },
+        setExportProgress,
+      );
+      triggerDownload(blob, filename);
+      setStatus(`exported ${filename}`);
     } catch (err) {
       setErrorMsg(err instanceof Error ? err.message : "export failed");
     } finally {
       setBusy(false);
+      setExportProgress(null);
     }
-  }, [currentSnap, exportFormat]);
+  }, [currentSnap, exportFormat, serverHeight, serverWidth]);
 
   const runBatch = useCallback(async () => {
     if (!batchFolder.trim()) return;
@@ -595,7 +597,7 @@ export default function Editor() {
             disabled={!hasImage || busy}
             onClick={() => void exportImage()}
           >
-            <IconExport size={16} /> Export
+            <IconExport size={16} /> {exportProgress ? exportProgress.message : "Export"}
           </button>
           <input
             ref={fileInputRef}
@@ -722,8 +724,7 @@ export default function Editor() {
             )}
 
             {sidebarTab === "cameras" && (
-              <LooksPanel
-                kind="cameras"
+              <CameraPanel
                 items={cameras}
                 tags={CAMERA_TAGS}
                 activeTag={cameraTag}
