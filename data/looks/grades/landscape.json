@@ -1,0 +1,90 @@
+[
+  {
+    "id": "grade_land_vivid_sky",
+    "name": "vivid sky",
+    "kind": "grade",
+    "tags": ["landscape", "travel"],
+    "stack": {
+      "develop": {"dehaze": 0.12, "vibrance": 0.14, "clarity": 0.12},
+      "split_tone": {"strength": 0.08, "highlight_rgb": [0.85, 0.92, 1.0]}
+    },
+    "notes": "travel postcard sky pop"
+  },
+  {
+    "id": "grade_land_misty",
+    "name": "misty",
+    "kind": "grade",
+    "tags": ["landscape", "soft"],
+    "stack": {
+      "develop": {"contrast": -0.02, "dehaze": 0.06},
+      "soft_haze": {"lift": 0.05, "desaturate": 0.14, "warmth": 0.04}
+    },
+    "notes": "soft fog landscape"
+  },
+  {
+    "id": "grade_land_autumn",
+    "name": "autumn",
+    "kind": "grade",
+    "tags": ["landscape", "warm"],
+    "stack": {
+      "develop": {"warmth": 0.18, "vibrance": 0.12, "saturation": 0.08},
+      "split_tone": {"strength": 0.10, "highlight_rgb": [1.0, 0.78, 0.45]}
+    },
+    "notes": "warm foliage autumn"
+  },
+  {
+    "id": "grade_land_arctic",
+    "name": "arctic",
+    "kind": "grade",
+    "tags": ["landscape", "cool"],
+    "stack": {
+      "develop": {"warmth": -0.15, "clarity": 0.10, "contrast": 0.06},
+      "split_tone": {"strength": 0.12, "shadow_rgb": [0.02, 0.06, 0.14], "highlight_rgb": [0.88, 0.95, 1.0]}
+    },
+    "notes": "cold arctic blues"
+  },
+  {
+    "id": "grade_land_desert",
+    "name": "desert",
+    "kind": "grade",
+    "tags": ["landscape", "warm"],
+    "stack": {
+      "develop": {"warmth": 0.22, "contrast": 0.08, "dehaze": 0.08},
+      "split_tone": {"strength": 0.10, "shadow_rgb": [0.10, 0.06, 0.03], "highlight_rgb": [1.0, 0.90, 0.65]}
+    },
+    "notes": "sand amber desert"
+  },
+  {
+    "id": "grade_land_jungle",
+    "name": "jungle",
+    "kind": "grade",
+    "tags": ["landscape", "green"],
+    "stack": {
+      "develop": {"vibrance": 0.16, "clarity": 0.14, "shadow_lift": 0.06},
+      "multiscale_detail": {"strength": 0.14}
+    },
+    "notes": "deep green jungle"
+  },
+  {
+    "id": "grade_land_bw_dramatic",
+    "name": "bw dramatic",
+    "kind": "grade",
+    "tags": ["landscape", "mono", "dramatic"],
+    "stack": {
+      "develop": {"saturation": -1.0, "contrast": 0.16, "clarity": 0.18},
+      "vignette": {"strength": 0.12, "feather": 0.75}
+    },
+    "notes": "ansel-ish dramatic mono"
+  },
+  {
+    "id": "grade_land_pastel_travel",
+    "name": "pastel travel",
+    "kind": "grade",
+    "tags": ["landscape", "pastel", "travel"],
+    "stack": {
+      "develop": {"contrast": -0.04, "vibrance": 0.06, "highlight_recovery": 0.10},
+      "soft_haze": {"lift": 0.03, "desaturate": 0.10, "warmth": 0.05}
+    },
+    "notes": "soft IG travel pastel"
+  }
+]

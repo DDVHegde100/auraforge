@@ -40,3 +40,8 @@ def test_portrait_grades_6_10() -> None:
 def test_food_grades() -> None:
     assert get_look("grade_food_appetite") is not None
     assert get_look("grade_food_street_night") is not None
+
+
+def test_landscape_grades() -> None:
+    assert get_look("grade_land_vivid_sky") is not None
+    assert get_look("grade_land_pastel_travel") is not None
