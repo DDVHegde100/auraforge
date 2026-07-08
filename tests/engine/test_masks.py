@@ -68,3 +68,13 @@ def test_render_mask_overlay_changes_pixels() -> None:
     rgb = _sky_rgb()
     out = render_mask_overlay(rgb, sky=sky_mask(rgb))
     assert float(out.mean()) != float(rgb.mean())
+
+
+from auraforge_engine.masks import resolve_sky_mask
+
+
+def test_resolve_sky_mask_heuristic_fallback() -> None:
+    rgb = _sky_rgb()
+    mask, source = resolve_sky_mask(rgb, use_onnx=True)
+    assert source == "heuristic"
+    assert mask.shape[:2] == rgb.shape[:2]
