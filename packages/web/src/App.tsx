@@ -2,12 +2,23 @@ import { useCallback, useEffect, useRef, useState } from "react";
 
 type AnalysisSummary = Record<string, string | number | boolean>;
 type EnhanceMode = "natural" | "portrait" | "land" | "food" | "glow";
+type ExportFormat = "jpeg" | "tiff";
 
-type GradeLook = {
+type LookItem = {
   id: string;
   name: string;
   kind: string;
   tags: string[];
+  experimental?: boolean;
+};
+
+type HistorySnap = {
+  strength: number;
+  mode: EnhanceMode;
+  gradeId: string | null;
+  signatureId: string | null;
+  showMasks: boolean;
+  proSafe: boolean;
 };
 
 const MODES: EnhanceMode[] = ["natural", "portrait", "land", "food", "glow"];
@@ -16,12 +27,11 @@ const GRADE_TAGS = ["all", "portrait", "food", "landscape", "street", "wedding",
 async function paintPreview(canvas: HTMLCanvasElement, dataUrl: string) {
   const img = new Image();
   img.decoding = "async";
-  const loaded = new Promise<void>((resolve, reject) => {
+  await new Promise<void>((resolve, reject) => {
     img.onload = () => resolve();
     img.onerror = () => reject(new Error("image decode failed"));
   });
   img.src = dataUrl;
-  await loaded;
   const maxW = canvas.parentElement?.clientWidth || 640;
   const scale = Math.min(1, maxW / img.width);
   const w = Math.max(1, Math.round(img.width * scale));
@@ -36,12 +46,11 @@ async function paintPreview(canvas: HTMLCanvasElement, dataUrl: string) {
 
 function DebugPanel({ data }: { data: AnalysisSummary | null }) {
   if (!data) return null;
-  const rows = Object.entries(data);
   return (
     <details className="debug-panel" open>
       <summary>scene analysis</summary>
       <dl className="debug-grid">
-        {rows.map(([k, v]) => (
+        {Object.entries(data).map(([k, v]) => (
           <div key={k} className="debug-row">
             <dt>{k.replace(/_/g, " ")}</dt>
             <dd>{typeof v === "number" ? v.toFixed(3) : String(v)}</dd>
@@ -63,13 +72,13 @@ export default function App() {
   const [strength, setStrength] = useState(50);
   const [mode, setMode] = useState<EnhanceMode>("natural");
   const [showMasks, setShowMasks] = useState(false);
-  const [grades, setGrades] = useState<GradeLook[]>([]);
+  const [proSafe, setProSafe] = useState(true);
+  const [grades, setGrades] = useState<LookItem[]>([]);
+  const [signatures, setSignatures] = useState<LookItem[]>([]);
   const [gradeTag, setGradeTag] = useState("all");
   const [selectedGrade, setSelectedGrade] = useState<string | null>(null);
   const [selectedSignature, setSelectedSignature] = useState<string | null>(null);
-  const [proSafe, setProSafe] = useState(true);
   const beforeRef = useRef<HTMLCanvasElement | null>(null);
-  const afterRef = useRef<HTMLCanvasElement | null>(null);
   const fileRef = useRef<File | null>(null);
   const debounceRef = useRef<number | null>(null);
 
@@ -78,6 +87,12 @@ export default function App() {
     const res = await fetch(`/api/grades${q}`);
     const data = await res.json();
     setGrades(data.grades ?? []);
+  }, []);
+
+  const loadSignatures = useCallback(async () => {
+    const res = await fetch("/api/signatures");
+    const data = await res.json();
+    setSignatures(data.signatures ?? []);
   }, []);
 
   useEffect(() => {
@@ -91,58 +106,41 @@ export default function App() {
       })
       .catch(() => setStatus("api offline — run ./dev.sh"));
     void loadGrades("all");
-  }, [loadGrades]);
-
-  const paintAfter = useCallback(async (dataUrl: string) => {
-    const after = afterRef.current;
-    if (after) {
-      await paintPreview(after, dataUrl);
-      setHasImage(true);
-    }
-  }, []);
-
-  const loadMaskOverlay = useCallback(async (file: File) => {
-    const body = new FormData();
-    body.append("file", file);
-    const res = await fetch("/api/process/masks", { method: "POST", body });
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.detail || "mask preview failed");
-    await paintAfter(data.preview);
-  }, [paintAfter]);
+    void loadSignatures();
+  }, [loadGrades, loadSignatures]);
 
   const runEnhance = useCallback(
     async (
       file: File,
-      nextStrength: number,
-      nextMode: EnhanceMode,
-      masks: boolean,
-      gradeId: string | null,
-      signatureId: string | null,
+      snap: HistorySnap,
     ) => {
       setBusy(true);
       try {
-        if (masks) {
-          await loadMaskOverlay(file);
+        if (snap.showMasks) {
+          const body = new FormData();
+          body.append("file", file);
+          const res = await fetch("/api/process/masks", { method: "POST", body });
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.detail || "mask preview failed");
           setStatus("mask debug · cyan sky · magenta skin · yellow subject");
           return;
         }
         const body = new FormData();
         body.append("file", file);
-        body.append("strength", String(nextStrength));
-        body.append("mode", nextMode);
-        body.append("pro_safe", proSafe ? "true" : "false");
-        if (gradeId) body.append("grade_id", gradeId);
-        if (selectedSignature) body.append("signature_id", selectedSignature);
+        body.append("strength", String(snap.strength));
+        body.append("mode", snap.mode);
+        body.append("pro_safe", snap.proSafe ? "true" : "false");
+        if (snap.gradeId) body.append("grade_id", snap.gradeId);
+        if (snap.signatureId) body.append("signature_id", snap.signatureId);
         const res = await fetch("/api/process/enhance", { method: "POST", body });
         const data = await res.json();
         if (!res.ok) throw new Error(data.detail || "enhance failed");
         await paintAfter(data.preview);
         setAnalysis(data.analysis ?? null);
-        const exp = data.analysis?.exposure_class ?? "?";
-        const content = data.analysis?.content_class ?? "?";
-        const grade = data.grade_id ? String(data.grade_id).replace("grade_", "") : "—";
+        const sig = data.signature_id ? String(data.signature_id).replace("sig_", "") : "—";
+        const clamped = data.signature_clamped ? " · clamped" : "";
         setStatus(
-          `enhance ${nextStrength}% · ${nextMode} · grade ${grade} · ${content} · ${exp}`,
+          `enhance ${snap.strength}% · ${snap.mode} · sig ${sig}${clamped}`,
         );
       } catch (err) {
         setStatus(err instanceof Error ? err.message : "enhance failed");
@@ -150,22 +148,28 @@ export default function App() {
         setBusy(false);
       }
     },
-    [loadMaskOverlay, paintAfter, proSafe, selectedSignature],
+    [pushHistory],
+  );
+
+  const currentSnap = useCallback(
+    (): HistorySnap => ({
+      strength,
+      mode,
+      gradeId: selectedGrade,
+      signatureId: selectedSignature,
+      showMasks,
+      proSafe,
+    }),
+    [mode, proSafe, selectedGrade, selectedSignature, showMasks, strength],
   );
 
   const scheduleEnhance = useCallback(
-    (
-      nextStrength: number,
-      nextMode: EnhanceMode,
-      masks: boolean,
-      gradeId: string | null,
-      signatureId: string | null,
-    ) => {
+    (snap: HistorySnap) => {
       const file = fileRef.current;
       if (!file) return;
       if (debounceRef.current) window.clearTimeout(debounceRef.current);
       debounceRef.current = window.setTimeout(() => {
-        void runEnhance(file, nextStrength, nextMode, masks, gradeId, signatureId);
+        void runEnhance(file, snap);
       }, 280);
     },
     [runEnhance],
@@ -187,8 +191,10 @@ export default function App() {
           await paintPreview(before, data.preview);
           setHasImage(true);
         }
+        setHasImage(true);
         setAnalysis(data.analysis ?? null);
-        await runEnhance(file, strength, mode, showMasks, selectedGrade, selectedSignature);
+        const snap = currentSnap();
+        await runEnhance(file, snap);
       } catch (err) {
         setStatus(err instanceof Error ? err.message : "preview failed");
         setHasImage(false);
@@ -197,7 +203,7 @@ export default function App() {
         setBusy(false);
       }
     },
-    [mode, runEnhance, selectedGrade, selectedSignature, showMasks, strength],
+    [currentSnap, runEnhance],
   );
 
   const onDrop = (e: React.DragEvent) => {
@@ -212,14 +218,23 @@ export default function App() {
       ? grades
       : grades.filter((g) => g.tags.map((t) => t.toLowerCase()).includes(gradeTag));
 
+  const applySnap = (partial: Partial<HistorySnap>) => {
+    const snap: HistorySnap = { ...currentSnap(), ...partial };
+    if (partial.strength !== undefined) setStrength(partial.strength);
+    if (partial.mode !== undefined) setMode(partial.mode);
+    if (partial.gradeId !== undefined) setSelectedGrade(partial.gradeId);
+    if (partial.signatureId !== undefined) setSelectedSignature(partial.signatureId);
+    if (partial.showMasks !== undefined) setShowMasks(partial.showMasks);
+    if (partial.proSafe !== undefined) setProSafe(partial.proSafe);
+    scheduleEnhance(snap);
+  };
+
   return (
     <main className="shell shell-wide">
       <h1>auraforge</h1>
       <p className="tag">my version of luminar neo but free</p>
       <p className="muted">{status}</p>
-      {lookCount !== null && (
-        <p className="muted">{lookCount} looks registered</p>
-      )}
+      {lookCount !== null && <p className="muted">{lookCount} looks registered</p>}
 
       <div
         className={`dropzone ${dragOver ? "active" : ""}`}
@@ -268,10 +283,7 @@ export default function App() {
           <button
             type="button"
             className={selectedGrade === null ? "grade-chip active" : "grade-chip"}
-            onClick={() => {
-              setSelectedGrade(null);
-              scheduleEnhance(strength, mode, showMasks, null);
-            }}
+            onClick={() => applySnap({ gradeId: null })}
           >
             none
           </button>
@@ -280,15 +292,44 @@ export default function App() {
               key={g.id}
               type="button"
               className={selectedGrade === g.id ? "grade-chip active" : "grade-chip"}
-              onClick={() => {
-                setSelectedGrade(g.id);
-                scheduleEnhance(strength, mode, showMasks, g.id);
-              }}
+              onClick={() => applySnap({ gradeId: g.id })}
             >
               {g.name}
             </button>
           ))}
         </div>
+      </section>
+
+      <section className="grade-browser">
+        <p className="section-label">signatures</p>
+        <div className="sig-gallery">
+          <button
+            type="button"
+            className={selectedSignature === null ? "sig-thumb active" : "sig-thumb"}
+            onClick={() => applySnap({ signatureId: null })}
+          >
+            none
+          </button>
+          {signatures.map((s) => (
+            <button
+              key={s.id}
+              type="button"
+              className={selectedSignature === s.id ? "sig-thumb active" : "sig-thumb"}
+              onClick={() => applySnap({ signatureId: s.id })}
+            >
+              <span className="sig-name">{s.name}</span>
+              {s.experimental && <span className="sig-badge">exp</span>}
+            </button>
+          ))}
+        </div>
+        <label className="mask-toggle">
+          <input
+            type="checkbox"
+            checked={proSafe}
+            onChange={(e) => applySnap({ proSafe: e.target.checked })}
+          />
+          pro-safe clamp (experimental sigs max 60%)
+        </label>
       </section>
 
       {hasImage && (
@@ -300,11 +341,7 @@ export default function App() {
               min={0}
               max={100}
               value={strength}
-              onChange={(e) => {
-                const v = Number(e.target.value);
-                setStrength(v);
-                scheduleEnhance(v, mode, showMasks, selectedGrade);
-              }}
+              onChange={(e) => applySnap({ strength: Number(e.target.value) })}
             />
             <span className="slider-value">{strength}</span>
           </label>
@@ -314,10 +351,7 @@ export default function App() {
                 key={m}
                 type="button"
                 className={m === mode ? "mode active" : "mode"}
-                onClick={() => {
-                  setMode(m);
-                  scheduleEnhance(strength, m, showMasks, selectedGrade);
-                }}
+                onClick={() => applySnap({ mode: m })}
               >
                 {m}
               </button>
@@ -327,32 +361,16 @@ export default function App() {
             <input
               type="checkbox"
               checked={showMasks}
-              onChange={(e) => {
-                const on = e.target.checked;
-                setShowMasks(on);
-                const file = fileRef.current;
-                if (file) scheduleEnhance(strength, mode, on, selectedGrade);
-              }}
+              onChange={(e) => applySnap({ showMasks: e.target.checked })}
             />
             show mask debug overlay
-          </label>
-          <label className="mask-toggle">
-            <input type="checkbox" checked={proSafe} onChange={(e) => { setProSafe(e.target.checked); const f = fileRef.current; if (f) scheduleEnhance(strength, mode, showMasks, selectedGrade, selectedSignature); }} />
-            pro-safe clamp experimental sigs
           </label>
         </section>
       )}
 
-      <div className={`canvas-row ${hasImage ? "show" : ""}`}>
-        <div className="canvas-wrap">
-          <p className="label">before</p>
-          <canvas ref={beforeRef} className="preview-canvas" />
-        </div>
-        <div className="canvas-wrap">
-          <p className="label">after</p>
-          <canvas ref={afterRef} className="preview-canvas" />
-        </div>
-      </div>
+      )}
+
+      <canvas ref={beforeRef} className="hidden-canvas" aria-hidden />
 
       <DebugPanel data={analysis} />
     </main>
