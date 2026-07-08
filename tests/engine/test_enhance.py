@@ -20,3 +20,19 @@ def test_recipe_from_under_exposure() -> None:
     analysis = analyze(rgb)
     recipe = recipe_from_analysis(analysis)
     assert recipe.exposure_stops > 0.0 or recipe.shadow_lift > 0.0
+
+
+from auraforge_engine.enhance import DevelopRecipe, mix_strength
+
+
+def test_mix_strength_zero_is_identity() -> None:
+    base = DevelopRecipe(contrast=0.2, clarity=0.15)
+    mixed = mix_strength(base, 0.0)
+    assert mixed.contrast == 0.0
+    assert mixed.clarity == 0.0
+
+
+def test_mix_strength_half() -> None:
+    base = DevelopRecipe(contrast=0.2)
+    mixed = mix_strength(base, 50.0)
+    assert abs(mixed.contrast - 0.1) < 1e-6
