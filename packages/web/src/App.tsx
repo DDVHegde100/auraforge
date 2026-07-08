@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
-/** draw a data-url jpeg onto a canvas (before view) */
+type AnalysisSummary = Record<string, string | number | boolean>;
+
 async function paintPreview(canvas: HTMLCanvasElement, dataUrl: string) {
   const img = new Image();
   img.decoding = "async";
@@ -22,6 +23,24 @@ async function paintPreview(canvas: HTMLCanvasElement, dataUrl: string) {
   ctx.drawImage(img, 0, 0, w, h);
 }
 
+function DebugPanel({ data }: { data: AnalysisSummary | null }) {
+  if (!data) return null;
+  const rows = Object.entries(data);
+  return (
+    <details className="debug-panel" open>
+      <summary>scene analysis</summary>
+      <dl className="debug-grid">
+        {rows.map(([k, v]) => (
+          <div key={k} className="debug-row">
+            <dt>{k.replace(/_/g, " ")}</dt>
+            <dd>{typeof v === "number" ? v.toFixed(3) : String(v)}</dd>
+          </div>
+        ))}
+      </dl>
+    </details>
+  );
+}
+
 export default function App() {
   const [status, setStatus] = useState("checking api…");
   const [lookCount, setLookCount] = useState<number | null>(null);
@@ -29,6 +48,7 @@ export default function App() {
   const [busy, setBusy] = useState(false);
   const [dragOver, setDragOver] = useState(false);
   const [hasImage, setHasImage] = useState(false);
+  const [analysis, setAnalysis] = useState<AnalysisSummary | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
 
   useEffect(() => {
@@ -57,10 +77,14 @@ export default function App() {
         await paintPreview(canvas, data.preview);
         setHasImage(true);
       }
-      setStatus(`before ${data.width}×${data.height}`);
+      setAnalysis(data.analysis ?? null);
+      const exp = data.analysis?.exposure_class ?? "?";
+      const content = data.analysis?.content_class ?? "?";
+      setStatus(`before ${data.width}×${data.height} · ${content} · ${exp}`);
     } catch (err) {
       setStatus(err instanceof Error ? err.message : "preview failed");
       setHasImage(false);
+      setAnalysis(null);
     } finally {
       setBusy(false);
     }
@@ -112,6 +136,8 @@ export default function App() {
         <p className="label">before</p>
         <canvas ref={canvasRef} className="before-canvas" />
       </div>
+
+      <DebugPanel data={analysis} />
     </main>
   );
 }
