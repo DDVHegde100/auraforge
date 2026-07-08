@@ -1,0 +1,52 @@
+[
+  {
+    "id": "sig_floating_light",
+    "name": "floating light",
+    "kind": "signature",
+    "tags": ["glow", "portrait", "light"],
+    "experimental": false,
+    "skin_protect": true,
+    "stack": { "status": "stub", "intent": "volumetric highlight bloom + subject soft key" },
+    "notes": "see LOOKS.md"
+  },
+  {
+    "id": "sig_thermal_spectrum",
+    "name": "thermal",
+    "kind": "signature",
+    "tags": ["experimental", "false-color"],
+    "experimental": true,
+    "skin_protect": false,
+    "stack": { "status": "stub", "intent": "ironbow luminance map" },
+    "notes": "see LOOKS.md"
+  },
+  {
+    "id": "grade_portrait_natural",
+    "name": "natural skin",
+    "kind": "grade",
+    "tags": ["portrait", "neutral"],
+    "experimental": false,
+    "skin_protect": true,
+    "stack": { "status": "stub" },
+    "notes": "first grade to implement"
+  },
+  {
+    "id": "grade_cine_teal_orange",
+    "name": "teal orange",
+    "kind": "grade",
+    "tags": ["cinema", "portrait"],
+    "experimental": false,
+    "skin_protect": true,
+    "stack": { "status": "stub", "intent": "teal shadows, protect skin line" },
+    "notes": "complementary-contrast science"
+  },
+  {
+    "id": "enhance_natural",
+    "name": "enhance natural",
+    "kind": "enhance",
+    "tags": ["accent", "default"],
+    "experimental": false,
+    "skin_protect": true,
+    "stack": { "status": "stub", "intent": "analysis → multi-slider recipe" },
+    "notes": "core neo-like slider"
+  }
+]
