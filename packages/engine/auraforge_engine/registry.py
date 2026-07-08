@@ -20,8 +20,18 @@ def load_looks(directory: Path | None = None) -> list[Look]:
     looks: list[Look] = []
     if not base.is_dir():
         return looks
-    for path in sorted(base.glob("*.json")):
-        if path.name.startswith("_") and path.name != "_stubs.json":
+    paths: list[Path] = []
+    stubs = base / "_stubs.json"
+    if stubs.is_file():
+        paths.append(stubs)
+    grades_dir = base / "grades"
+    if grades_dir.is_dir():
+        paths.extend(sorted(grades_dir.glob("*.json")))
+    signatures_dir = base / "signatures"
+    if signatures_dir.is_dir():
+        paths.extend(sorted(signatures_dir.glob("*.json")))
+    for path in paths:
+        if path.name.startswith("_"):
             continue
         try:
             payload = json.loads(path.read_text(encoding="utf-8"))
