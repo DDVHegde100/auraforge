@@ -1,0 +1,41 @@
+[
+  {
+    "id": "sig_prism_flare",
+    "name": "prism flare",
+    "kind": "signature",
+    "tags": ["experimental", "flare", "creative"],
+    "experimental": true,
+    "stack": {
+      "highlight_bloom": {"intensity": 0.35, "threshold": 0.65, "blur_sigma": 22},
+      "channel_offset_fringe": {"strength": 0.22, "red_offset": [3, 1], "blue_offset": [-3, -1]},
+      "soft_haze": {"lift": 0.04, "desaturate": 0.10, "warmth": 0.08}
+    },
+    "notes": "pastel prism streaks on highlights"
+  },
+  {
+    "id": "sig_thermal_spectrum",
+    "name": "thermal",
+    "kind": "signature",
+    "tags": ["experimental", "false-color"],
+    "experimental": true,
+    "skin_protect": false,
+    "stack": {
+      "false_color_thermal": {"strength": 1.0}
+    },
+    "notes": "ironbow luminance map"
+  },
+  {
+    "id": "sig_infrared_dream",
+    "name": "IR dream",
+    "kind": "signature",
+    "tags": ["experimental", "false-color", "glow"],
+    "experimental": true,
+    "stack": {
+      "develop": {"saturation": -0.20, "highlight_recovery": 0.15},
+      "false_color_thermal": {"strength": 0.55},
+      "orton_glow": {"opacity": 0.42, "blur_sigma": 30},
+      "soft_haze": {"lift": 0.05, "desaturate": 0.08, "warmth": 0.10}
+    },
+    "notes": "faux 720nm pale glow"
+  }
+]
