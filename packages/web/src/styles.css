@@ -72,13 +72,27 @@ h1 {
   font-size: 0.95rem;
 }
 
-.preview-wrap {
+.canvas-wrap {
   margin-top: 1.25rem;
+  display: none;
 }
 
-.preview {
+.canvas-wrap.show {
+  display: block;
+}
+
+.canvas-wrap .label {
+  margin: 0 0 0.4rem;
+  font-size: 0.8rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #8a8f98;
+}
+
+.before-canvas {
   display: block;
   width: 100%;
   height: auto;
   border-radius: 2px;
+  background: #111318;
 }

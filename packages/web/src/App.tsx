@@ -1,12 +1,35 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
+
+/** draw a data-url jpeg onto a canvas (before view) */
+async function paintPreview(canvas: HTMLCanvasElement, dataUrl: string) {
+  const img = new Image();
+  img.decoding = "async";
+  const loaded = new Promise<void>((resolve, reject) => {
+    img.onload = () => resolve();
+    img.onerror = () => reject(new Error("image decode failed"));
+  });
+  img.src = dataUrl;
+  await loaded;
+  const maxW = canvas.parentElement?.clientWidth || 640;
+  const scale = Math.min(1, maxW / img.width);
+  const w = Math.max(1, Math.round(img.width * scale));
+  const h = Math.max(1, Math.round(img.height * scale));
+  canvas.width = w;
+  canvas.height = h;
+  const ctx = canvas.getContext("2d");
+  if (!ctx) return;
+  ctx.clearRect(0, 0, w, h);
+  ctx.drawImage(img, 0, 0, w, h);
+}
 
 export default function App() {
   const [status, setStatus] = useState("checking api…");
   const [lookCount, setLookCount] = useState<number | null>(null);
-  const [preview, setPreview] = useState<string | null>(null);
   const [fileName, setFileName] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [dragOver, setDragOver] = useState(false);
+  const [hasImage, setHasImage] = useState(false);
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
 
   useEffect(() => {
     Promise.all([
@@ -29,11 +52,15 @@ export default function App() {
       const res = await fetch("/api/process/preview", { method: "POST", body });
       const data = await res.json();
       if (!res.ok) throw new Error(data.detail || "preview failed");
-      setPreview(data.preview);
-      setStatus(`preview ${data.width}×${data.height}`);
+      const canvas = canvasRef.current;
+      if (canvas) {
+        await paintPreview(canvas, data.preview);
+        setHasImage(true);
+      }
+      setStatus(`before ${data.width}×${data.height}`);
     } catch (err) {
       setStatus(err instanceof Error ? err.message : "preview failed");
-      setPreview(null);
+      setHasImage(false);
     } finally {
       setBusy(false);
     }
@@ -80,11 +107,11 @@ export default function App() {
       </div>
 
       {fileName && <p className="muted">{fileName}</p>}
-      {preview && (
-        <div className="preview-wrap">
-          <img src={preview} alt="preview" className="preview" />
-        </div>
-      )}
+
+      <div className={`canvas-wrap ${hasImage ? "show" : ""}`}>
+        <p className="label">before</p>
+        <canvas ref={canvasRef} className="before-canvas" />
+      </div>
     </main>
   );
 }
