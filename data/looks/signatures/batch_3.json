@@ -1,0 +1,41 @@
+[
+  {
+    "id": "sig_neon_noir",
+    "name": "neon noir",
+    "kind": "signature",
+    "tags": ["street", "neon", "experimental"],
+    "experimental": true,
+    "stack": {
+      "develop": {"contrast": 0.18, "saturation": 0.08, "clarity": 0.10},
+      "split_tone": {"strength": 0.20, "shadow_rgb": [0.08, 0.02, 0.14], "highlight_rgb": [0.55, 0.95, 0.98]},
+      "channel_offset_fringe": {"strength": 0.14},
+      "vignette": {"strength": 0.20, "feather": 0.68}
+    },
+    "notes": "cyber street crush with neon edges"
+  },
+  {
+    "id": "sig_liquid_sun",
+    "name": "liquid sun",
+    "kind": "signature",
+    "tags": ["warm", "glow", "sunset"],
+    "skin_protect": true,
+    "stack": {
+      "highlight_bloom": {"intensity": 0.45, "threshold": 0.58, "blur_sigma": 24},
+      "split_tone": {"strength": 0.18, "highlight_rgb": [1.0, 0.72, 0.35]},
+      "orton_glow": {"opacity": 0.35, "blur_sigma": 26}
+    },
+    "notes": "molten sunset bloom"
+  },
+  {
+    "id": "sig_soft_godray",
+    "name": "soft godray",
+    "kind": "signature",
+    "tags": ["glow", "landscape", "atmosphere"],
+    "stack": {
+      "floating_light_gradient": {"intensity": 0.34, "warmth": 0.16, "angle_deg": 55, "falloff": 1.4},
+      "soft_haze": {"lift": 0.05, "desaturate": 0.10, "warmth": 0.08},
+      "orton_glow": {"opacity": 0.30, "blur_sigma": 32}
+    },
+    "notes": "radial light shafts through haze"
+  }
+]
