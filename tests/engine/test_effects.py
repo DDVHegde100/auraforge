@@ -36,3 +36,12 @@ def test_soft_haze_lifts_and_desaturates() -> None:
     out = soft_haze(rgb, lift=0.05, desaturate=0.3)
     assert float(out.mean()) > float(rgb.mean())
     assert float(out[..., 0].std()) < float(rgb[..., 0].std())
+
+
+from auraforge_engine.effects import floating_light_gradient
+
+
+def test_floating_light_gradient_adds_glow() -> None:
+    rgb = np.full((48, 64, 3), 0.25, dtype=np.float32)
+    out = floating_light_gradient(rgb, intensity=0.3)
+    assert float(out.mean()) > float(rgb.mean())
