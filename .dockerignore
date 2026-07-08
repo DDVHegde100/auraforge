@@ -1,0 +1,12 @@
+# Docker
+.docker/
+data/sessions/
+data/exports/
+
+# Vercel
+.vercel
+
+# Env
+.env
+.env.local
+.env.*.local

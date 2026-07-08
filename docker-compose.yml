@@ -1,0 +1,16 @@
+services:
+  api:
+    build: .
+    ports:
+      - "8787:8787"
+    environment:
+      AURAFORGE_CORS_ORIGINS: "http://localhost:5173,http://127.0.0.1:5173"
+      AURAFORGE_SESSION_DIR: /data/sessions
+      AURAFORGE_EXPORT_DIR: /data/exports
+      AURAFORGE_MAX_UPLOAD_MB: "40"
+    volumes:
+      - auraforge-data:/data
+    restart: unless-stopped
+
+volumes:
+  auraforge-data:
