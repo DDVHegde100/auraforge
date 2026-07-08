@@ -24,3 +24,15 @@ def test_highlight_bloom_lifts_bright_areas() -> None:
     rgb[10:20, 10:20] = 0.95
     out = highlight_bloom(rgb, intensity=0.4)
     assert float(out[15, 15].mean()) > float(rgb[15, 15].mean())
+
+
+from auraforge_engine.effects import soft_haze
+
+
+def test_soft_haze_lifts_and_desaturates() -> None:
+    rgb = np.zeros((16, 16, 3), dtype=np.float32)
+    rgb[..., 0] = 0.8
+    rgb[..., 1] = 0.2
+    out = soft_haze(rgb, lift=0.05, desaturate=0.3)
+    assert float(out.mean()) > float(rgb.mean())
+    assert float(out[..., 0].std()) < float(rgb[..., 0].std())
