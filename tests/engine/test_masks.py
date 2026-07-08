@@ -20,3 +20,14 @@ def test_sky_mask_high_in_upper_band() -> None:
     rgb = _sky_rgb()
     mask = sky_mask(rgb)
     assert float(mask[:16, :].mean()) > float(mask[-16:, :].mean())
+
+
+from auraforge_engine.masks import feather_mask
+
+
+def test_feather_softens_edges() -> None:
+    hard = np.zeros((32, 32), dtype=np.float32)
+    hard[:16, :] = 1.0
+    soft = feather_mask(hard, sigma=6.0)
+    assert float(soft[15, 16]) > 0.0
+    assert float(soft[15, 16]) < 1.0
