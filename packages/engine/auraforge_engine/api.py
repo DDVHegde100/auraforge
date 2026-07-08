@@ -29,11 +29,13 @@ from auraforge_engine.enhance.tune import TuneParams
 from auraforge_engine.profiles.a6000 import apply_a6000_base, should_apply_a6000
 from auraforge_engine.registry import load_looks
 from auraforge_engine.signatures.loader import load_signatures
+from auraforge_engine.config import cors_origins, max_upload_bytes
+from auraforge_engine.jobs.export_job import EXPORT_JOBS, JobStatus
 
 app = FastAPI(title="auraforge", version=__version__)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=cors_origins(),
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -138,7 +140,15 @@ def _enhance_preview(
 
 @app.get("/health")
 def health() -> dict:
-    return {"ok": True, "engine": __version__, "name": "auraforge"}
+    from auraforge_engine.config import export_dir, session_dir
+
+    return {
+        "ok": True,
+        "engine": __version__,
+        "name": "auraforge",
+        "session_persist": bool(session_dir()),
+        "export_persist": bool(export_dir()),
+    }
 
 
 @app.get("/cache/stats")
@@ -200,6 +210,11 @@ async def process_open(
     suffix = Path(file.filename or "upload.jpg").suffix or ".jpg"
     try:
         data = await file.read()
+        if len(data) > max_upload_bytes():
+            raise HTTPException(
+                status_code=413,
+                detail=f"file too large — max {max_upload_bytes() // (1024 * 1024)} MB",
+            )
         session = IMAGE_SESSIONS.open(
             data,
             suffix,
@@ -477,3 +492,121 @@ async def process_export(
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     except Exception as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+def _run_export_to_job(
+    job,
+    rgb,
+    *,
+    strength: float,
+    mode: str,
+    grade_id: str,
+    camera_id: str,
+    signature_id: str,
+    fmt: str,
+    use_onnx_sky: bool,
+    pro_safe: bool,
+    tune: TuneParams,
+) -> None:
+    job.progress = 0.2
+    job.message = "enhancing full resolution"
+    enhanced, _meta = run_enhance_with_look(
+        rgb,
+        strength=strength,
+        mode=mode,
+        grade_id=grade_id or None,
+        camera_id=camera_id or None,
+        signature_id=signature_id or None,
+        use_onnx_sky=use_onnx_sky,
+        pro_safe=pro_safe,
+        tune=tune,
+    )
+    job.progress = 0.75
+    job.message = "encoding"
+    ext = ".tif" if fmt.lower() in ("tiff", "tif", "tiff16") else ".jpg"
+    out_path = EXPORT_JOBS.output_file(job.job_id, ext)
+    if ext == ".tif":
+        body = rgb_to_tiff16_bytes(enhanced)
+        job.media_type = "image/tiff"
+        job.filename = job.filename.replace(".jpg", ".tif").replace(".jpeg", ".tif")
+    else:
+        body = rgb_to_jpeg_bytes(enhanced, quality=94)
+        job.media_type = "image/jpeg"
+    out_path.write_bytes(body)
+    job.output_path = out_path
+    job.progress = 0.95
+
+
+@app.post("/process/export/async")
+async def process_export_async(
+    session_id: str = Form(""),
+    file: UploadFile | None = File(None),
+    strength: float = Form(80.0),
+    mode: str = Form("natural"),
+    grade_id: str = Form(""),
+    camera_id: str = Form(""),
+    signature_id: str = Form(""),
+    fmt: str = Form("jpeg"),
+    use_onnx_sky: bool = Form(False),
+    pro_safe: bool = Form(True),
+    use_a6000_profile: bool = Form(False),
+    clarity: float = Form(50.0),
+    detail: float = Form(50.0),
+    light: float = Form(50.0),
+    shadows: float = Form(50.0),
+    highlights: float = Form(50.0),
+    warmth: float = Form(50.0),
+    look_amount: float = Form(100.0),
+) -> dict[str, Any]:
+    """Queue full-res export — poll GET /jobs/{id} then download."""
+    tune = _tune_params(clarity, detail, light, shadows, highlights, warmth, look_amount)
+    rgb, _prep, _cache, filename = await _load_rgb_for_request(
+        session_id=session_id,
+        file=file,
+        use_a6000_profile=use_a6000_profile,
+    )
+    base_name = Path(filename or "auraforge").stem
+    out_name = f"{base_name}-auraforge.tif" if fmt.lower() in ("tiff", "tif", "tiff16") else f"{base_name}-auraforge.jpg"
+    media = "image/tiff" if "tif" in fmt.lower() else "image/jpeg"
+    job = EXPORT_JOBS.create(filename=out_name, media_type=media)
+
+    def work(j) -> None:
+        _run_export_to_job(
+            j,
+            rgb,
+            strength=strength,
+            mode=mode,
+            grade_id=grade_id,
+            camera_id=camera_id,
+            signature_id=signature_id,
+            fmt=fmt,
+            use_onnx_sky=use_onnx_sky,
+            pro_safe=pro_safe,
+            tune=tune,
+        )
+
+    EXPORT_JOBS.run_async(job.job_id, work)
+    return {"ok": True, **job.to_dict()}
+
+
+@app.get("/jobs/{job_id}")
+def get_job(job_id: str) -> dict[str, Any]:
+    job = EXPORT_JOBS.get(job_id)
+    if job is None:
+        raise HTTPException(status_code=404, detail="job not found or expired")
+    return {"ok": True, **job.to_dict()}
+
+
+@app.get("/jobs/{job_id}/download")
+def download_job(job_id: str) -> Response:
+    job = EXPORT_JOBS.get(job_id)
+    if job is None or job.status != JobStatus.DONE or job.output_path is None:
+        raise HTTPException(status_code=404, detail="export not ready")
+    if not job.output_path.is_file():
+        raise HTTPException(status_code=410, detail="export file expired")
+    body = job.output_path.read_bytes()
+    return Response(
+        content=body,
+        media_type=job.media_type,
+        headers={"Content-Disposition": f'attachment; filename="{job.filename}"'},
+    )
