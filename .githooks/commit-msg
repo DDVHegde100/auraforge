@@ -1,0 +1,12 @@
+#!/usr/bin/env bash
+# strip cursor / ai co-author trailers from commit messages
+MSG_FILE="$1"
+if [[ ! -f "$MSG_FILE" ]]; then
+  exit 0
+fi
+# portable in-place edit
+tmp="$(mktemp)"
+grep -viE '^[[:space:]]*Co-authored-by:[[:space:]].*(Cursor|cursoragent)' "$MSG_FILE" > "$tmp" || true
+# also drop empty trailing cursor helper lines if any
+mv "$tmp" "$MSG_FILE"
+exit 0
