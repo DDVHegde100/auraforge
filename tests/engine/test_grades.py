@@ -50,3 +50,19 @@ def test_landscape_grades() -> None:
 def test_street_wedding_grades() -> None:
     assert get_look("grade_street_night_neon") is not None
     assert get_look("grade_event_sparkle") is not None
+
+
+from auraforge_engine.grades import load_grades
+from auraforge_engine.registry import load_looks
+
+
+def test_load_grades_count_40() -> None:
+    grades = load_grades()
+    assert len(grades) >= 40
+    assert all(g.kind == "grade" for g in grades)
+
+
+def test_registry_all_grade_batches() -> None:
+    ids = {look.id for look in load_looks()}
+    assert "grade_cine_noir" in ids
+    assert "grade_still_hdr_subtle" in ids
