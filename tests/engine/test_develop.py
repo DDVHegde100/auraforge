@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import numpy as np
 
-from auraforge_engine.develop import apply_clarity, apply_contrast, apply_exposure_stops, apply_highlight_recovery, apply_vibrance_sat
+from auraforge_engine.develop import apply_clarity, apply_contrast, apply_exposure_stops, apply_highlight_recovery, apply_mild_denoise, apply_vibrance_sat
 
 
 def test_exposure_stops_brightens() -> None:
@@ -47,3 +47,11 @@ def test_warmth_shifts_red() -> None:
     rgb = np.full((8, 8, 3), 0.4, dtype=np.float32)
     out = apply_warmth_tint(rgb, warmth=0.5)
     assert float(out[..., 0].mean()) > float(rgb[..., 0].mean())
+
+
+def test_mild_denoise_runs() -> None:
+    rng = np.random.default_rng(0)
+    rgb = rng.random((16, 16, 3), dtype=np.float32) * 0.5 + 0.2
+    out = apply_mild_denoise(rgb, 0.4)
+    assert out.shape == rgb.shape
+    assert float(out.mean()) > 0.0
