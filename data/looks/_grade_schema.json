@@ -1,0 +1,23 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "AuraforgeGradeStack",
+  "type": "object",
+  "description": "Ordered grade effect parameters applied after develop.",
+  "properties": {
+    "develop": {
+      "type": "object",
+      "description": "DevelopRecipe fields: exposure_stops, contrast, vibrance, etc.",
+      "additionalProperties": true
+    },
+    "split_tone": { "type": "object", "additionalProperties": true },
+    "soft_haze": { "type": "object", "additionalProperties": true },
+    "film_grain": { "type": "object", "additionalProperties": true },
+    "vignette": { "type": "object", "additionalProperties": true },
+    "highlight_bloom": { "type": "object", "additionalProperties": true },
+    "floating_light_gradient": { "type": "object", "additionalProperties": true },
+    "multiscale_detail": { "type": "object", "additionalProperties": true },
+    "false_color_thermal": { "type": "object", "additionalProperties": true },
+    "channel_offset_fringe": { "type": "object", "additionalProperties": true }
+  },
+  "additionalProperties": false
+}
