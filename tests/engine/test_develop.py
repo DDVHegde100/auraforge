@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import numpy as np
 
-from auraforge_engine.develop import apply_exposure_stops, apply_highlight_recovery
+from auraforge_engine.develop import apply_contrast, apply_exposure_stops, apply_highlight_recovery
 
 
 def test_exposure_stops_brightens() -> None:
@@ -18,3 +18,9 @@ def test_highlight_recovery_compresses() -> None:
     rgb[..., :] = (0.95, 0.92, 0.88)
     out = apply_highlight_recovery(rgb, 0.5)
     assert float(out.mean()) < float(rgb.mean())
+
+
+def test_contrast_midtone() -> None:
+    rgb = np.full((8, 8, 3), 0.3, dtype=np.float32)
+    out = apply_contrast(rgb, 0.2)
+    assert float(out.mean()) > float(rgb.mean())
