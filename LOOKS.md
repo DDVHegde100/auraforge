@@ -126,7 +126,27 @@ strengths below are **target design intent** (engine maps to params in PLAN_100)
 
 ---
 
-## D. showcase gallery requirements
+## D. perceptual QA notes (grades)
+
+quick visual checks at **100% grade strength** on reference sets in `samples/`:
+
+| tag | pass criteria |
+|-----|----------------|
+| portrait | skin hue stable; no orange/teal shift on cheeks at 100% |
+| food | whites on plates stay neutral; greens not neon |
+| landscape | sky gradient smooth; no halos on tree lines |
+| street | neons pop without color bleed into skin |
+| wedding | highlights soft; no clipped bridal dress |
+| cinema | teal-orange separation readable; skin not mint |
+| still | product edges crisp; no muddy shadows |
+
+stacking with **AI enhance @ 50%** then grade @ 100%: grade should read as color mood, not second exposure pass.
+
+problem grades to watch: `grade_portrait_bw_ink` (crush on dark skin), `grade_street_bleach` (over-desat), `grade_food_street_night` (fringe on small plates).
+
+---
+
+## E. showcase gallery requirements
 
 for local web visual showcase (`/showcase`):
 
