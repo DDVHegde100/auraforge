@@ -3,7 +3,15 @@ import { useCallback, useEffect, useRef, useState } from "react";
 type AnalysisSummary = Record<string, string | number | boolean>;
 type EnhanceMode = "natural" | "portrait" | "land" | "food" | "glow";
 
+type GradeLook = {
+  id: string;
+  name: string;
+  kind: string;
+  tags: string[];
+};
+
 const MODES: EnhanceMode[] = ["natural", "portrait", "land", "food", "glow"];
+const GRADE_TAGS = ["all", "portrait", "food", "landscape", "street", "wedding", "cinema", "still"];
 
 async function paintPreview(canvas: HTMLCanvasElement, dataUrl: string) {
   const img = new Image();
@@ -55,10 +63,20 @@ export default function App() {
   const [strength, setStrength] = useState(50);
   const [mode, setMode] = useState<EnhanceMode>("natural");
   const [showMasks, setShowMasks] = useState(false);
+  const [grades, setGrades] = useState<GradeLook[]>([]);
+  const [gradeTag, setGradeTag] = useState("all");
+  const [selectedGrade, setSelectedGrade] = useState<string | null>(null);
   const beforeRef = useRef<HTMLCanvasElement | null>(null);
   const afterRef = useRef<HTMLCanvasElement | null>(null);
   const fileRef = useRef<File | null>(null);
   const debounceRef = useRef<number | null>(null);
+
+  const loadGrades = useCallback(async (tag: string) => {
+    const q = tag === "all" ? "" : `?tag=${encodeURIComponent(tag)}`;
+    const res = await fetch(`/api/grades${q}`);
+    const data = await res.json();
+    setGrades(data.grades ?? []);
+  }, []);
 
   useEffect(() => {
     Promise.all([
@@ -70,18 +88,16 @@ export default function App() {
         setLookCount(looks.count ?? 0);
       })
       .catch(() => setStatus("api offline — run ./dev.sh"));
-  }, []);
+    void loadGrades("all");
+  }, [loadGrades]);
 
-  const paintAfter = useCallback(
-    async (dataUrl: string) => {
-      const after = afterRef.current;
-      if (after) {
-        await paintPreview(after, dataUrl);
-        setHasImage(true);
-      }
-    },
-    [],
-  );
+  const paintAfter = useCallback(async (dataUrl: string) => {
+    const after = afterRef.current;
+    if (after) {
+      await paintPreview(after, dataUrl);
+      setHasImage(true);
+    }
+  }, []);
 
   const loadMaskOverlay = useCallback(async (file: File) => {
     const body = new FormData();
@@ -93,7 +109,13 @@ export default function App() {
   }, [paintAfter]);
 
   const runEnhance = useCallback(
-    async (file: File, nextStrength: number, nextMode: EnhanceMode, masks: boolean) => {
+    async (
+      file: File,
+      nextStrength: number,
+      nextMode: EnhanceMode,
+      masks: boolean,
+      
+    ) => {
       setBusy(true);
       try {
         if (masks) {
@@ -112,9 +134,9 @@ export default function App() {
         setAnalysis(data.analysis ?? null);
         const exp = data.analysis?.exposure_class ?? "?";
         const content = data.analysis?.content_class ?? "?";
-        const sky = data.masks?.sky_applied ? "sky" : "—";
+        const grade = data.grade_id ? String(data.grade_id).replace("grade_", "") : "—";
         setStatus(
-          `enhance ${nextStrength}% · ${nextMode} · ${content} · ${exp} · ${sky}`,
+          `enhance ${nextStrength}% · ${nextMode} · grade ${grade} · ${content} · ${exp}`,
         );
       } catch (err) {
         setStatus(err instanceof Error ? err.message : "enhance failed");
@@ -126,7 +148,12 @@ export default function App() {
   );
 
   const scheduleEnhance = useCallback(
-    (nextStrength: number, nextMode: EnhanceMode, masks: boolean) => {
+    (
+      nextStrength: number,
+      nextMode: EnhanceMode,
+      masks: boolean,
+      
+    ) => {
       const file = fileRef.current;
       if (!file) return;
       if (debounceRef.current) window.clearTimeout(debounceRef.current);
@@ -173,13 +200,18 @@ export default function App() {
     if (file) void openFile(file);
   };
 
+  const filteredGrades =
+    gradeTag === "all"
+      ? grades
+      : grades.filter((g) => g.tags.map((t) => t.toLowerCase()).includes(gradeTag));
+
   return (
-    <main className="shell">
+    <main className="shell shell-wide">
       <h1>auraforge</h1>
       <p className="tag">my version of luminar neo but free</p>
       <p className="muted">{status}</p>
       {lookCount !== null && (
-        <p className="muted">{lookCount} looks registered (stubs for now)</p>
+        <p className="muted">{lookCount} looks registered</p>
       )}
 
       <div
@@ -207,6 +239,50 @@ export default function App() {
       </div>
 
       {fileName && <p className="muted">{fileName}</p>}
+
+      <section className="grade-browser">
+        <p className="section-label">grades</p>
+        <div className="mode-row">
+          {GRADE_TAGS.map((tag) => (
+            <button
+              key={tag}
+              type="button"
+              className={tag === gradeTag ? "mode active" : "mode"}
+              onClick={() => {
+                setGradeTag(tag);
+                void loadGrades(tag);
+              }}
+            >
+              {tag}
+            </button>
+          ))}
+        </div>
+        <div className="grade-list">
+          <button
+            type="button"
+            className={selectedGrade === null ? "grade-chip active" : "grade-chip"}
+            onClick={() => {
+              setSelectedGrade(null);
+              setSelectedGrade(null);
+            }}
+          >
+            none
+          </button>
+          {filteredGrades.map((g) => (
+            <button
+              key={g.id}
+              type="button"
+              className={selectedGrade === g.id ? "grade-chip active" : "grade-chip"}
+              onClick={() => {
+                setSelectedGrade(g.id);
+                setSelectedGrade(g.id);
+              }}
+            >
+              {g.name}
+            </button>
+          ))}
+        </div>
+      </section>
 
       {hasImage && (
         <section className="enhance-controls">

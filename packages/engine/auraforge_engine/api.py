@@ -6,12 +6,13 @@ import tempfile
 from pathlib import Path
 from typing import Any
 
-from fastapi import FastAPI, File, Form, HTTPException, UploadFile
+from fastapi import FastAPI, File, Form, HTTPException, Query, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 
 from auraforge_engine import __version__
 from auraforge_engine.analysis import analyze, analyze_summary
 from auraforge_engine.enhance.run import run_enhance
+from auraforge_engine.grades.loader import load_grades
 from auraforge_engine.io import downscale, load_rgb, rgb_to_data_url
 from auraforge_engine.masks.debug import render_mask_overlay
 from auraforge_engine.masks.feather import feather_mask
@@ -38,6 +39,19 @@ def health() -> dict:
 def looks() -> dict:
     items = [look.to_dict() for look in load_looks()]
     return {"count": len(items), "looks": items}
+
+
+
+@app.get("/grades")
+def grades(tag: str | None = Query(default=None)) -> dict:
+    items = load_grades()
+    if tag:
+        key = tag.lower()
+        items = [g for g in items if key in [t.lower() for t in g.tags]]
+    tags: set[str] = set()
+    for grade in load_grades():
+        tags.update(t.lower() for t in grade.tags)
+    return {"count": len(items), "tags": sorted(tags), "grades": [g.to_dict() for g in items]}
 
 
 @app.post("/process/preview")
