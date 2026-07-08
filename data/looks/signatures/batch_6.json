@@ -1,0 +1,40 @@
+[
+  {
+    "id": "sig_hyper_clarity",
+    "name": "hyper clarity",
+    "kind": "signature",
+    "tags": ["detail", "landscape"],
+    "stack": {
+      "develop": {"clarity": 0.22, "contrast": 0.10},
+      "multiscale_detail": {"strength": 0.28},
+      "rim_light": {"intensity": 0.15}
+    },
+    "notes": "aggressive multi-scale microcontrast"
+  },
+  {
+    "id": "sig_moon_milk",
+    "name": "moon milk",
+    "kind": "signature",
+    "tags": ["soft", "night", "silver"],
+    "stack": {
+      "develop": {"shadow_lift": 0.12, "saturation": -0.15, "contrast": -0.02},
+      "soft_haze": {"lift": 0.04, "desaturate": 0.12, "warmth": -0.06},
+      "split_tone": {"strength": 0.10, "highlight_rgb": [0.92, 0.94, 0.98]},
+      "orton_glow": {"opacity": 0.28, "blur_sigma": 22}
+    },
+    "notes": "silver night soft bloom"
+  },
+  {
+    "id": "sig_spectrum_split",
+    "name": "spectrum split",
+    "kind": "signature",
+    "tags": ["experimental", "creative", "fringe"],
+    "experimental": true,
+    "stack": {
+      "channel_offset_fringe": {"strength": 0.28, "red_offset": [3, 1], "blue_offset": [-3, -1]},
+      "highlight_bloom": {"intensity": 0.20, "threshold": 0.65},
+      "orton_glow": {"opacity": 0.25, "blur_sigma": 16}
+    },
+    "notes": "RGB fringe creative split"
+  }
+]

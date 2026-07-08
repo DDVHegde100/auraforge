@@ -36,3 +36,9 @@ def test_arctic_glass_exists() -> None:
     from auraforge_engine.registry import get_look
     assert get_look("sig_arctic_glass") is not None
     assert get_look("sig_paper_print") is not None
+
+
+def test_batch_6_signatures() -> None:
+    from auraforge_engine.registry import get_look
+    assert get_look("sig_hyper_clarity") is not None
+    assert get_look("sig_spectrum_split") is not None
