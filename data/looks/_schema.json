@@ -1,0 +1,23 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "AuraforgeLook",
+  "type": "object",
+  "required": ["id", "name", "kind", "tags", "stack"],
+  "properties": {
+    "id": { "type": "string" },
+    "name": { "type": "string" },
+    "kind": { "enum": ["signature", "grade", "enhance"] },
+    "tags": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "experimental": { "type": "boolean", "default": false },
+    "skin_protect": { "type": "boolean", "default": true },
+    "stack": {
+      "type": "object",
+      "description": "Ordered or keyed effect parameters. Filled as engine grows.",
+      "additionalProperties": true
+    },
+    "notes": { "type": "string" }
+  }
+}
