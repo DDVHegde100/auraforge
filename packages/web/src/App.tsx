@@ -85,6 +85,10 @@ export default function App() {
   const [history, setHistory] = useState<HistorySnap[]>([]);
   const beforeRef = useRef<HTMLCanvasElement | null>(null);
   const fileRef = useRef<File | null>(null);
+
+  const [batchFolder, setBatchFolder] = useState("");
+  const [batchOut, setBatchOut] = useState("");
+  const [batchResult, setBatchResult] = useState<string | null>(null);
   const debounceRef = useRef<number | null>(null);
 
   const loadGrades = useCallback(async (tag: string) => {
@@ -265,6 +269,33 @@ export default function App() {
     }
   }, [currentSnap, exportFormat]);
 
+
+  const runBatch = useCallback(async () => {
+    if (!batchFolder.trim()) return;
+    setBusy(true);
+    setBatchResult(null);
+    try {
+      const snap = currentSnap();
+      const body = new FormData();
+      body.append("folder", batchFolder.trim());
+      if (batchOut.trim()) body.append("out_dir", batchOut.trim());
+      body.append("strength", String(snap.strength));
+      body.append("mode", snap.mode);
+      body.append("pro_safe", snap.proSafe ? "true" : "false");
+      if (snap.gradeId) body.append("grade_id", snap.gradeId);
+      if (snap.signatureId) body.append("signature_id", snap.signatureId);
+      const res = await fetch("/api/process/batch", { method: "POST", body });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.detail || "batch failed");
+      setBatchResult(`batch ok ${data.ok}/${data.count}${data.output_dir ? ` → ${data.output_dir}` : ""}`);
+      setStatus(`batch ${data.ok}/${data.count}`);
+    } catch (err) {
+      setStatus(err instanceof Error ? err.message : "batch failed");
+    } finally {
+      setBusy(false);
+    }
+  }, [batchFolder, batchOut, currentSnap]);
+
   const onDrop = (e: React.DragEvent) => {
     e.preventDefault();
     setDragOver(false);
@@ -320,6 +351,31 @@ export default function App() {
       </div>
 
       {fileName && <p className="muted">{fileName}</p>}
+
+
+      <section className="batch-panel">
+        <p className="section-label">batch folder (local path)</p>
+        <div className="batch-row">
+          <input
+            className="batch-input"
+            type="text"
+            placeholder="/Users/you/Photos/inbox"
+            value={batchFolder}
+            onChange={(e) => setBatchFolder(e.target.value)}
+          />
+          <input
+            className="batch-input"
+            type="text"
+            placeholder="output dir (optional)"
+            value={batchOut}
+            onChange={(e) => setBatchOut(e.target.value)}
+          />
+          <button type="button" className="tool-btn primary" disabled={busy || !batchFolder.trim()} onClick={() => void runBatch()}>
+            run batch
+          </button>
+        </div>
+        {batchResult && <p className="muted">{batchResult}</p>}
+      </section>
 
       <section className="grade-browser">
         <p className="section-label">grades</p>

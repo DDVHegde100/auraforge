@@ -19,6 +19,7 @@ from auraforge_engine.masks.feather import feather_mask
 from auraforge_engine.masks.onnx_sky import resolve_sky_mask
 from auraforge_engine.masks.skin import skin_soft_mask
 from auraforge_engine.masks.subject import subject_mask
+from auraforge_engine.pipeline.batch import process_batch_folder
 from auraforge_engine.pipeline.stack import run_enhance_with_look
 from auraforge_engine.registry import load_looks
 from auraforge_engine.signatures.loader import load_signatures
@@ -185,6 +186,38 @@ async def process_enhance(
     except Exception as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
+
+
+
+@app.post("/process/batch")
+async def process_batch(
+    folder: str = Form(...),
+    strength: float = Form(50.0),
+    mode: str = Form("natural"),
+    grade_id: str = Form(""),
+    signature_id: str = Form(""),
+    out_dir: str = Form(""),
+    limit: int = Form(50),
+    pro_safe: bool = Form(True),
+    use_onnx_sky: bool = Form(False),
+) -> dict[str, Any]:
+    try:
+        result = process_batch_folder(
+            folder,
+            strength=strength,
+            mode=mode,
+            grade_id=grade_id or None,
+            signature_id=signature_id or None,
+            out_dir=out_dir or None,
+            limit=limit,
+            pro_safe=pro_safe,
+            use_onnx_sky=use_onnx_sky,
+        )
+        return {"ok": True, **result}
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except Exception as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
 
 @app.post("/process/export")
 async def process_export(
