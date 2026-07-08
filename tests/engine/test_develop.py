@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import numpy as np
 
-from auraforge_engine.develop import apply_contrast, apply_exposure_stops, apply_highlight_recovery, apply_vibrance_sat
+from auraforge_engine.develop import apply_clarity, apply_contrast, apply_exposure_stops, apply_highlight_recovery, apply_vibrance_sat
 
 
 def test_exposure_stops_brightens() -> None:
@@ -33,3 +33,11 @@ def test_vibrance_sat_boosts_chroma() -> None:
     rgb[..., 2] = 0.2
     out = apply_vibrance_sat(rgb, vibrance=0.3, saturation=0.2)
     assert float(out[..., 0].mean()) > float(rgb[..., 0].mean())
+
+
+def test_clarity_adds_detail() -> None:
+    rgb = np.zeros((32, 32, 3), dtype=np.float32)
+    rgb[8:24, 8:24] = 0.8
+    rgb[12:20, 12:20] = 0.2
+    out = apply_clarity(rgb, 0.4)
+    assert float(out.std()) >= float(rgb.std())
