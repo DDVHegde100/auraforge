@@ -1,5 +1,17 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ErrorBanner } from "../components/ErrorBanner";
+import { UploadPanel } from "../components/UploadPanel";
+import { TonePanel } from "../components/TonePanel";
+import { appendTuneToForm, DEFAULT_TUNE, type TuneState } from "../lib/tune";
+import {
+  fileMeta,
+  normalizeForUpload,
+  parseApiError,
+  readLocalPreview,
+  validateFile,
+  type FileMeta,
+  type UploadStep,
+} from "../lib/upload";
 
 type AnalysisSummary = Record<string, string | number | boolean>;
 type EnhanceMode = "natural" | "portrait" | "land" | "food" | "glow";
@@ -17,33 +29,21 @@ type HistorySnap = {
   strength: number;
   mode: EnhanceMode;
   gradeId: string | null;
+  cameraId: string | null;
   signatureId: string | null;
   showMasks: boolean;
   proSafe: boolean;
   useA6000: boolean;
+  tune: TuneState;
 };
 
 const MODES: EnhanceMode[] = ["natural", "portrait", "land", "food", "glow"];
 const GRADE_TAGS = ["all", "portrait", "food", "landscape", "street", "wedding", "cinema", "still"];
+const CAMERA_TAGS = ["all", "film", "digital", "vintage", "cinema", "flash", "fuji", "lomo"];
 
-async function paintPreview(canvas: HTMLCanvasElement, dataUrl: string) {
-  const img = new Image();
-  img.decoding = "async";
-  await new Promise<void>((resolve, reject) => {
-    img.onload = () => resolve();
-    img.onerror = () => reject(new Error("image decode failed"));
-  });
-  img.src = dataUrl;
-  const maxW = canvas.parentElement?.clientWidth || 640;
-  const scale = Math.min(1, maxW / img.width);
-  const w = Math.max(1, Math.round(img.width * scale));
-  const h = Math.max(1, Math.round(img.height * scale));
-  canvas.width = w;
-  canvas.height = h;
-  const ctx = canvas.getContext("2d");
-  if (!ctx) return;
-  ctx.clearRect(0, 0, w, h);
-  ctx.drawImage(img, 0, 0, w, h);
+function formatApiError(err: unknown, hint?: string | null): string {
+  const base = err instanceof Error ? err.message : String(err);
+  return hint ? `${base} — ${hint}` : base;
 }
 
 function DebugPanel({ data }: { data: AnalysisSummary | null }) {
@@ -72,14 +72,19 @@ export default function Editor() {
   const [hasImage, setHasImage] = useState(false);
   const [analysis, setAnalysis] = useState<AnalysisSummary | null>(null);
   const [strength, setStrength] = useState(50);
+  const [tune, setTune] = useState<TuneState>(DEFAULT_TUNE);
+  const [isLiveRender, setIsLiveRender] = useState(false);
   const [mode, setMode] = useState<EnhanceMode>("natural");
   const [showMasks, setShowMasks] = useState(false);
   const [proSafe, setProSafe] = useState(true);
   const [useA6000, setUseA6000] = useState(false);
   const [grades, setGrades] = useState<LookItem[]>([]);
+  const [cameras, setCameras] = useState<LookItem[]>([]);
   const [signatures, setSignatures] = useState<LookItem[]>([]);
   const [gradeTag, setGradeTag] = useState("all");
+  const [cameraTag, setCameraTag] = useState("all");
   const [selectedGrade, setSelectedGrade] = useState<string | null>(null);
+  const [selectedCamera, setSelectedCamera] = useState<string | null>(null);
   const [selectedSignature, setSelectedSignature] = useState<string | null>(null);
   const [beforeUrl, setBeforeUrl] = useState<string | null>(null);
   const [afterUrl, setAfterUrl] = useState<string | null>(null);
@@ -92,10 +97,26 @@ export default function Editor() {
   const [batchFolder, setBatchFolder] = useState("");
   const [batchOut, setBatchOut] = useState("");
   const [batchResult, setBatchResult] = useState<string | null>(null);
-  const beforeRef = useRef<HTMLCanvasElement | null>(null);
+  const [uploadStep, setUploadStep] = useState<UploadStep>("idle");
+  const [uploadMeta, setUploadMeta] = useState<FileMeta | null>(null);
+  const [convertNote, setConvertNote] = useState<string | null>(null);
+  const [localPreview, setLocalPreview] = useState<string | null>(null);
+  const [serverWidth, setServerWidth] = useState<number | null>(null);
+  const [serverHeight, setServerHeight] = useState<number | null>(null);
+  const [previewMs, setPreviewMs] = useState<number | null>(null);
+  const [enhanceMs, setEnhanceMs] = useState<number | null>(null);
+  const [errorHint, setErrorHint] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const fileRef = useRef<File | null>(null);
+  const localPreviewRef = useRef<string | null>(null);
   const debounceRef = useRef<number | null>(null);
+
+  const revokeLocalPreview = useCallback(() => {
+    if (localPreviewRef.current) {
+      URL.revokeObjectURL(localPreviewRef.current);
+      localPreviewRef.current = null;
+    }
+  }, []);
 
   const loadGrades = useCallback(async (tag: string) => {
     const q = tag === "all" ? "" : `?tag=${encodeURIComponent(tag)}`;
@@ -103,6 +124,14 @@ export default function Editor() {
     if (!res.ok) throw new Error("grades unavailable");
     const data = await res.json();
     setGrades(data.grades ?? []);
+  }, []);
+
+  const loadCameras = useCallback(async (tag: string) => {
+    const q = tag === "all" ? "" : `?tag=${encodeURIComponent(tag)}`;
+    const res = await fetch(`/api/cameras${q}`);
+    if (!res.ok) throw new Error("cameras unavailable");
+    const data = await res.json();
+    setCameras(data.cameras ?? []);
   }, []);
 
   const loadSignatures = useCallback(async () => {
@@ -134,8 +163,9 @@ export default function Editor() {
   useEffect(() => {
     void refreshHealth();
     void loadGrades("all");
+    void loadCameras("all");
     void loadSignatures();
-  }, [loadGrades, loadSignatures, refreshHealth]);
+  }, [loadGrades, loadCameras, loadSignatures, refreshHealth]);
 
   const pushHistory = useCallback((snap: HistorySnap) => {
     setHistory((prev) => [...prev.slice(-19), snap]);
@@ -145,20 +175,31 @@ export default function Editor() {
     async (
       file: File,
       snap: HistorySnap,
-      opts?: { skipHistory?: boolean },
+      opts?: { skipHistory?: boolean; trackUpload?: boolean; live?: boolean },
     ) => {
-      setBusy(true);
+      if (opts?.live) setIsLiveRender(true);
+      else if (opts?.trackUpload) setUploadStep("uploading_enhance");
+      else setBusy(true);
       setErrorMsg(null);
+      setErrorHint(null);
+      const t0 = performance.now();
       try {
         if (snap.showMasks) {
           const body = new FormData();
           body.append("file", file);
           const res = await fetch("/api/process/masks", { method: "POST", body });
+          if (!res.ok) {
+            const err = await parseApiError(res, "mask preview failed");
+            throw new Error(formatApiError(err.message, err.hint));
+          }
           const data = await res.json();
-          if (!res.ok) throw new Error(data.detail || "mask preview failed");
           setAfterUrl(data.preview);
           setStatus("mask debug · cyan sky · magenta skin · yellow subject");
           setOffline(false);
+          if (opts?.trackUpload) {
+            setEnhanceMs(Math.round(performance.now() - t0));
+            setUploadStep("done");
+          }
           return;
         }
         const body = new FormData();
@@ -168,28 +209,40 @@ export default function Editor() {
         body.append("pro_safe", snap.proSafe ? "true" : "false");
         body.append("use_a6000_profile", snap.useA6000 ? "true" : "false");
         if (snap.gradeId) body.append("grade_id", snap.gradeId);
+        if (snap.cameraId) body.append("camera_id", snap.cameraId);
         if (snap.signatureId) body.append("signature_id", snap.signatureId);
+        appendTuneToForm(body, snap.tune);
         const res = await fetch("/api/process/enhance", { method: "POST", body });
+        if (!res.ok) {
+          const err = await parseApiError(res, "enhance failed");
+          throw new Error(formatApiError(err.message, err.hint));
+        }
         const data = await res.json();
-        if (!res.ok) throw new Error(data.detail || "enhance failed");
         setAfterUrl(data.preview);
         setAnalysis(data.analysis ?? null);
         setOffline(false);
         const sig = data.signature_id ? String(data.signature_id).replace("sig_", "") : "—";
+        const cam = data.camera_id ? String(data.camera_id).replace("cam_", "") : "—";
         const clamped = data.signature_clamped ? " · clamped" : "";
         const cached = data.cached ? " · cached" : "";
         const a6000 = data.a6000_profile ? " · a6000" : "";
         setStatus(
-          `enhance ${snap.strength}% · ${snap.mode} · sig ${sig}${clamped}${cached}${a6000}`,
+          `enhance ${snap.strength}% · ${snap.mode} · cam ${cam} · sig ${sig}${clamped}${cached}${a6000}`,
         );
         if (!opts?.skipHistory) pushHistory(snap);
+        if (opts?.trackUpload) {
+          setEnhanceMs(Math.round(performance.now() - t0));
+          setUploadStep("done");
+        }
       } catch (err) {
         const msg = err instanceof Error ? err.message : "enhance failed";
         setErrorMsg(msg);
         setStatus(msg);
-        if (msg.includes("fetch") || msg.includes("network")) setOffline(true);
+        if (opts?.trackUpload) setUploadStep("error");
+        if (msg.includes("fetch") || msg.includes("network") || msg.includes("offline")) setOffline(true);
       } finally {
-        setBusy(false);
+        if (opts?.live) setIsLiveRender(false);
+        else setBusy(false);
       }
     },
     [pushHistory],
@@ -200,12 +253,14 @@ export default function Editor() {
       strength,
       mode,
       gradeId: selectedGrade,
+      cameraId: selectedCamera,
       signatureId: selectedSignature,
       showMasks,
       proSafe,
       useA6000,
+      tune,
     }),
-    [mode, proSafe, selectedGrade, selectedSignature, showMasks, strength, useA6000],
+    [mode, proSafe, selectedCamera, selectedGrade, selectedSignature, showMasks, strength, tune, useA6000],
   );
 
   const scheduleEnhance = useCallback(
@@ -214,8 +269,8 @@ export default function Editor() {
       if (!file) return;
       if (debounceRef.current) window.clearTimeout(debounceRef.current);
       debounceRef.current = window.setTimeout(() => {
-        void runEnhance(file, snap);
-      }, 280);
+        void runEnhance(file, snap, { live: true });
+      }, 90);
     },
     [runEnhance],
   );
@@ -223,36 +278,88 @@ export default function Editor() {
   const openFile = useCallback(
     async (file: File) => {
       setBusy(true);
-      setFileName(file.name);
-      fileRef.current = file;
-      setHistory([]);
       setErrorMsg(null);
+      setErrorHint(null);
+      setUploadStep("reading");
+      setPreviewMs(null);
+      setEnhanceMs(null);
+      setServerWidth(null);
+      setServerHeight(null);
+      setBeforeUrl(null);
+      setAfterUrl(null);
+      setHasImage(false);
+
+      const validation = validateFile(file);
+      if (validation) {
+        setUploadMeta(fileMeta(file));
+        setUploadStep("error");
+        setErrorMsg(validation);
+        setErrorHint("use JPEG, PNG, HEIC, TIFF, or Sony RAW (.arw)");
+        setBusy(false);
+        return;
+      }
+
       try {
-        const body = new FormData();
-        body.append("file", file);
-        const res = await fetch("/api/process/preview", { method: "POST", body });
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.detail || "preview failed");
-        setBeforeUrl(data.preview);
-        const before = beforeRef.current;
-        if (before) await paintPreview(before, data.preview);
+        setUploadMeta(fileMeta(file));
+        setFileName(file.name);
+
+        const { file: uploadFile, note } = await normalizeForUpload(file);
+        setConvertNote(note ?? null);
+        fileRef.current = uploadFile;
+
+        revokeLocalPreview();
+        setUploadStep("local_preview");
+        const localUrl = await readLocalPreview(uploadFile);
+        localPreviewRef.current = localUrl;
+        setLocalPreview(localUrl);
         setHasImage(true);
+
+        setUploadStep("uploading_preview");
+        const tPreview = performance.now();
+        const body = new FormData();
+        body.append("file", uploadFile);
+        const res = await fetch("/api/process/preview", { method: "POST", body });
+        if (!res.ok) {
+          const err = await parseApiError(res, "preview failed");
+          setErrorHint(err.hint ?? null);
+          throw new Error(err.message);
+        }
+        const data = await res.json();
+        setPreviewMs(Math.round(performance.now() - tPreview));
+        setBeforeUrl(data.preview);
+        setServerWidth(data.width ?? null);
+        setServerHeight(data.height ?? null);
         setAnalysis(data.analysis ?? null);
         setOffline(false);
+        setHistory([]);
+
         const snap = currentSnap();
-        await runEnhance(file, snap);
+        await runEnhance(uploadFile, snap, { trackUpload: true });
       } catch (err) {
-        const msg = err instanceof Error ? err.message : "preview failed";
+        const msg = err instanceof Error ? err.message : "upload failed";
         setErrorMsg(msg);
         setStatus(msg);
-        setHasImage(false);
-        setAnalysis(null);
+        setUploadStep("error");
+        if (msg.includes("fetch") || msg.includes("offline")) {
+          setOffline(true);
+          setErrorHint("run ./dev.sh in the auraforge folder, then reload");
+        }
       } finally {
         setBusy(false);
       }
     },
-    [currentSnap, runEnhance],
+    [currentSnap, revokeLocalPreview, runEnhance],
   );
+
+  const pickFile = useCallback(
+    (file: File | undefined) => {
+      if (!file) return;
+      void openFile(file);
+    },
+    [openFile],
+  );
+
+  useEffect(() => () => revokeLocalPreview(), [revokeLocalPreview]);
 
   const undo = useCallback(() => {
     if (history.length < 2) return;
@@ -261,10 +368,12 @@ export default function Editor() {
     setStrength(prev.strength);
     setMode(prev.mode);
     setSelectedGrade(prev.gradeId);
+    setSelectedCamera(prev.cameraId);
     setSelectedSignature(prev.signatureId);
     setShowMasks(prev.showMasks);
     setProSafe(prev.proSafe);
     setUseA6000(prev.useA6000);
+    setTune(prev.tune);
     const file = fileRef.current;
     if (file) void runEnhance(file, prev, { skipHistory: true });
   }, [history, runEnhance]);
@@ -283,7 +392,9 @@ export default function Editor() {
       body.append("pro_safe", snap.proSafe ? "true" : "false");
       body.append("use_a6000_profile", snap.useA6000 ? "true" : "false");
       if (snap.gradeId) body.append("grade_id", snap.gradeId);
+      if (snap.cameraId) body.append("camera_id", snap.cameraId);
       if (snap.signatureId) body.append("signature_id", snap.signatureId);
+      appendTuneToForm(body, snap.tune);
       const res = await fetch("/api/process/export", { method: "POST", body });
       if (!res.ok) {
         const err = await res.json();
@@ -319,7 +430,9 @@ export default function Editor() {
       body.append("pro_safe", snap.proSafe ? "true" : "false");
       body.append("use_a6000_profile", snap.useA6000 ? "true" : "false");
       if (snap.gradeId) body.append("grade_id", snap.gradeId);
+      if (snap.cameraId) body.append("camera_id", snap.cameraId);
       if (snap.signatureId) body.append("signature_id", snap.signatureId);
+      appendTuneToForm(body, snap.tune);
       const res = await fetch("/api/process/batch", { method: "POST", body });
       const data = await res.json();
       if (!res.ok) throw new Error(data.detail || "batch failed");
@@ -347,36 +460,50 @@ export default function Editor() {
         e.preventDefault();
         fileInputRef.current?.click();
       }
-      if (!mod && hasImage && beforeUrl && afterUrl) {
+      if (!mod && hasImage && (beforeUrl || localPreview)) {
         if (e.key === "ArrowLeft") setScrub((s) => Math.max(0, s - 5));
         if (e.key === "ArrowRight") setScrub((s) => Math.min(100, s + 5));
       }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [afterUrl, beforeUrl, exportImage, hasImage, undo]);
+  }, [afterUrl, beforeUrl, exportImage, hasImage, localPreview, undo]);
 
   const onDrop = (e: React.DragEvent) => {
     e.preventDefault();
     setDragOver(false);
     const file = e.dataTransfer.files?.[0];
-    if (file) void openFile(file);
+    if (!file) {
+      setErrorMsg("no file in drop — drag a single image file");
+      setUploadStep("error");
+      return;
+    }
+    pickFile(file);
   };
+
+  const displayBefore = beforeUrl || localPreview;
 
   const filteredGrades =
     gradeTag === "all"
       ? grades
       : grades.filter((g) => g.tags.map((t) => t.toLowerCase()).includes(gradeTag));
 
+  const filteredCameras =
+    cameraTag === "all"
+      ? cameras
+      : cameras.filter((c) => c.tags.map((t) => t.toLowerCase()).includes(cameraTag));
+
   const applySnap = (partial: Partial<HistorySnap>) => {
     const snap: HistorySnap = { ...currentSnap(), ...partial };
     if (partial.strength !== undefined) setStrength(partial.strength);
     if (partial.mode !== undefined) setMode(partial.mode);
     if (partial.gradeId !== undefined) setSelectedGrade(partial.gradeId);
+    if (partial.cameraId !== undefined) setSelectedCamera(partial.cameraId);
     if (partial.signatureId !== undefined) setSelectedSignature(partial.signatureId);
     if (partial.showMasks !== undefined) setShowMasks(partial.showMasks);
     if (partial.proSafe !== undefined) setProSafe(partial.proSafe);
     if (partial.useA6000 !== undefined) setUseA6000(partial.useA6000);
+    if (partial.tune !== undefined) setTune(partial.tune);
     scheduleEnhance(snap);
   };
 
@@ -412,31 +539,46 @@ export default function Editor() {
       )}
 
       <div
-        className={`dropzone ${dragOver ? "active" : ""}`}
+        className={`dropzone ${dragOver ? "active" : ""} ${busy ? "busy" : ""}`}
         onDragOver={(e) => {
           e.preventDefault();
+          e.stopPropagation();
           setDragOver(true);
         }}
         onDragLeave={() => setDragOver(false)}
         onDrop={onDrop}
       >
-        <p>{busy ? "loading…" : "drop a local photo here"}</p>
+        <p>{busy ? "processing your photo…" : "drop a local photo here"}</p>
+        <p className="dropzone-hint">JPEG · PNG · HEIC · TIFF · ARW · up to ~80 MB</p>
         <label className="pick">
           or choose file
           <input
             ref={fileInputRef}
             type="file"
-            accept="image/*,.arw,.dng,.nef,.cr2,.tif,.tiff"
+            accept="image/*,.heic,.heif,.arw,.dng,.nef,.cr2,.cr3,.tif,.tiff"
             hidden
             onChange={(e) => {
-              const file = e.target.files?.[0];
-              if (file) void openFile(file);
+              pickFile(e.target.files?.[0]);
+              e.target.value = "";
             }}
           />
         </label>
       </div>
 
-      {fileName && <p className="muted">{fileName}</p>}
+      <UploadPanel
+        step={uploadStep}
+        meta={uploadMeta}
+        convertNote={convertNote}
+        localPreview={localPreview}
+        serverWidth={serverWidth}
+        serverHeight={serverHeight}
+        previewMs={previewMs}
+        enhanceMs={enhanceMs}
+        error={errorMsg}
+        hint={errorHint}
+      />
+
+      {fileName && uploadStep !== "idle" && <p className="muted">{fileName}</p>}
 
       <section className="batch-panel">
         <p className="section-label">batch folder (local path)</p>
@@ -501,6 +643,44 @@ export default function Editor() {
       </section>
 
       <section className="grade-browser">
+        <p className="section-label">cameras</p>
+        <div className="mode-row">
+          {CAMERA_TAGS.map((tag) => (
+            <button
+              key={tag}
+              type="button"
+              className={tag === cameraTag ? "mode active" : "mode"}
+              onClick={() => {
+                setCameraTag(tag);
+                void loadCameras(tag);
+              }}
+            >
+              {tag}
+            </button>
+          ))}
+        </div>
+        <div className="cam-gallery">
+          <button
+            type="button"
+            className={selectedCamera === null ? "cam-thumb active" : "cam-thumb"}
+            onClick={() => applySnap({ cameraId: null })}
+          >
+            none
+          </button>
+          {filteredCameras.map((c) => (
+            <button
+              key={c.id}
+              type="button"
+              className={selectedCamera === c.id ? "cam-thumb active" : "cam-thumb"}
+              onClick={() => applySnap({ cameraId: c.id })}
+            >
+              <span className="cam-name">{c.name}</span>
+            </button>
+          ))}
+        </div>
+      </section>
+
+      <section className="grade-browser">
         <p className="section-label">signatures</p>
         <div className="sig-gallery">
           <button
@@ -541,64 +721,69 @@ export default function Editor() {
       </section>
 
       {hasImage && (
-        <section className="enhance-controls">
-          <label className="slider-label">
-            ai enhance
-            <input
-              type="range"
-              min={0}
-              max={100}
-              value={strength}
-              onChange={(e) => applySnap({ strength: Number(e.target.value) })}
-            />
-            <span className="slider-value">{strength}</span>
-          </label>
-          <div className="mode-row">
-            {MODES.map((m) => (
-              <button
-                key={m}
-                type="button"
-                className={m === mode ? "mode active" : "mode"}
-                onClick={() => applySnap({ mode: m })}
-              >
-                {m}
+        <>
+          <TonePanel
+            tune={tune}
+            strength={strength}
+            live={isLiveRender}
+            onStrength={(v) => applySnap({ strength: v })}
+            onTune={(key, v) => applySnap({ tune: { ...tune, [key]: v } })}
+          />
+          <section className="enhance-controls">
+            <div className="mode-row">
+              {MODES.map((m) => (
+                <button
+                  key={m}
+                  type="button"
+                  className={m === mode ? "mode active" : "mode"}
+                  onClick={() => applySnap({ mode: m })}
+                >
+                  {m}
+                </button>
+              ))}
+            </div>
+            <label className="mask-toggle">
+              <input
+                type="checkbox"
+                checked={showMasks}
+                onChange={(e) => applySnap({ showMasks: e.target.checked })}
+              />
+              show mask debug overlay
+            </label>
+            <div className="toolbar-row">
+              <button type="button" className="tool-btn" disabled={history.length < 2} onClick={undo}>
+                undo
               </button>
-            ))}
-          </div>
-          <label className="mask-toggle">
-            <input
-              type="checkbox"
-              checked={showMasks}
-              onChange={(e) => applySnap({ showMasks: e.target.checked })}
-            />
-            show mask debug overlay
-          </label>
-          <div className="toolbar-row">
-            <button type="button" className="tool-btn" disabled={history.length < 2} onClick={undo}>
-              undo
-            </button>
-            <select
-              className="export-select"
-              value={exportFormat}
-              onChange={(e) => setExportFormat(e.target.value as ExportFormat)}
-            >
-              <option value="jpeg">jpeg</option>
-              <option value="tiff">tiff 16-bit</option>
-            </select>
-            <button type="button" className="tool-btn primary" onClick={() => void exportImage()}>
-              export
-            </button>
-          </div>
-        </section>
+              <select
+                className="export-select"
+                value={exportFormat}
+                onChange={(e) => setExportFormat(e.target.value as ExportFormat)}
+              >
+                <option value="jpeg">jpeg</option>
+                <option value="tiff">tiff 16-bit</option>
+              </select>
+              <button type="button" className="tool-btn primary" onClick={() => void exportImage()}>
+                export
+              </button>
+            </div>
+          </section>
+        </>
       )}
 
-      {hasImage && beforeUrl && afterUrl && (
+      {hasImage && displayBefore && (
         <section className="compare-section">
           <p className="label">before / after</p>
+          {!afterUrl && uploadStep === "uploading_enhance" && (
+            <p className="muted compare-wait">running enhance pipeline…</p>
+          )}
           <div className="compare-wrap">
-            <img src={afterUrl} alt="after" className="compare-img" />
+            {afterUrl ? (
+              <img src={afterUrl} alt="after" className="compare-img" />
+            ) : (
+              <img src={displayBefore} alt="processing" className="compare-img compare-dim" />
+            )}
             <img
-              src={beforeUrl}
+              src={displayBefore}
               alt="before"
               className="compare-img compare-before"
               style={{ clipPath: `inset(0 ${100 - scrub}% 0 0)` }}
@@ -617,8 +802,6 @@ export default function Editor() {
           </label>
         </section>
       )}
-
-      <canvas ref={beforeRef} className="hidden-canvas" aria-hidden />
 
       <DebugPanel data={analysis} />
     </main>
