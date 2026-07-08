@@ -7,7 +7,9 @@ from typing import Any
 
 from auraforge_engine.io.export import export_jpeg
 from auraforge_engine.io.load import JPEG_PNG, RAW, TIFF, load_rgb
+from auraforge_engine.metadata import read_metadata
 from auraforge_engine.pipeline.stack import run_enhance_with_look
+from auraforge_engine.profiles.a6000 import apply_a6000_base, should_apply_a6000
 
 IMAGE_SUFFIXES = JPEG_PNG | TIFF | RAW
 
@@ -25,6 +27,16 @@ def discover_images(folder: Path, *, limit: int = 50) -> list[Path]:
     return files
 
 
+def _prepare_rgb(path: Path, *, use_a6000_profile: bool) -> tuple[Any, dict[str, Any]]:
+    rgb = load_rgb(path)
+    meta: dict[str, Any] = {"path": str(path), "name": path.name}
+    exif = read_metadata(path)
+    meta["camera_model"] = exif.camera_model
+    if should_apply_a6000(exif, use_a6000_profile):
+        rgb = apply_a6000_base(rgb)
+        meta["a6000_profile"] = True
+    return rgb, meta
+
 
 def process_batch_folder(
     folder: str | Path,
@@ -35,6 +47,7 @@ def process_batch_folder(
     signature_id: str | None = None,
     pro_safe: bool = True,
     use_onnx_sky: bool = False,
+    use_a6000_profile: bool = False,
     out_dir: str | Path | None = None,
     limit: int = 50,
 ) -> dict[str, Any]:
@@ -51,8 +64,7 @@ def process_batch_folder(
     results: list[dict[str, Any]] = []
     for path in images:
         try:
-            rgb = load_rgb(path)
-            prep = {"path": str(path), "name": path.name}
+            rgb, prep = _prepare_rgb(path, use_a6000_profile=use_a6000_profile)
             enhanced, meta = run_enhance_with_look(
                 rgb,
                 strength=strength,

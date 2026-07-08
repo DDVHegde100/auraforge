@@ -13,15 +13,17 @@ from fastapi.responses import Response
 from auraforge_engine import __version__
 from auraforge_engine.analysis import analyze, analyze_summary
 from auraforge_engine.grades.loader import load_grades
-from auraforge_engine.io import downscale
-from auraforge_engine.io.preview_cache import PREVIEW_CACHE, load_rgb, rgb_to_data_url, rgb_to_jpeg_bytes, rgb_to_tiff16_bytes
+from auraforge_engine.io import downscale, load_rgb, rgb_to_data_url, rgb_to_jpeg_bytes, rgb_to_tiff16_bytes
+from auraforge_engine.io.preview_cache import PREVIEW_CACHE
 from auraforge_engine.masks.debug import render_mask_overlay
 from auraforge_engine.masks.feather import feather_mask
 from auraforge_engine.masks.onnx_sky import resolve_sky_mask
 from auraforge_engine.masks.skin import skin_soft_mask
 from auraforge_engine.masks.subject import subject_mask
+from auraforge_engine.metadata import read_metadata
 from auraforge_engine.pipeline.batch import process_batch_folder
 from auraforge_engine.pipeline.stack import run_enhance_with_look
+from auraforge_engine.profiles.a6000 import apply_a6000_base, should_apply_a6000
 from auraforge_engine.registry import load_looks
 from auraforge_engine.signatures.loader import load_signatures
 
@@ -32,6 +34,16 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+def _prepare_rgb(path: str, rgb, *, use_a6000_profile: bool) -> tuple[Any, dict[str, Any]]:
+    meta: dict[str, Any] = {}
+    exif = read_metadata(path)
+    meta["camera_model"] = exif.camera_model
+    if should_apply_a6000(exif, use_a6000_profile):
+        rgb = apply_a6000_base(rgb)
+        meta["a6000_profile"] = True
+    return rgb, meta
 
 
 @app.get("/health")
@@ -159,6 +171,7 @@ async def process_enhance(
     max_size: int = Form(1600),
     use_onnx_sky: bool = Form(False),
     pro_safe: bool = Form(True),
+    use_a6000_profile: bool = Form(False),
 ) -> dict[str, Any]:
     suffix = Path(file.filename or "upload.jpg").suffix or ".jpg"
     try:
@@ -172,6 +185,7 @@ async def process_enhance(
             max_size=max_size,
             use_onnx_sky=use_onnx_sky,
             pro_safe=pro_safe,
+            use_a6000_profile=use_a6000_profile,
         )
         cached = PREVIEW_CACHE.get(cache_key)
         if cached is not None:
@@ -181,6 +195,7 @@ async def process_enhance(
             tmp.write(data)
             tmp.flush()
             rgb = load_rgb(tmp.name)
+            rgb, prep_meta = _prepare_rgb(tmp.name, rgb, use_a6000_profile=use_a6000_profile)
             enhanced, meta = run_enhance_with_look(
                 rgb,
                 strength=strength,
@@ -200,6 +215,7 @@ async def process_enhance(
             "preview": url,
             "name": file.filename,
             "cached": False,
+            **prep_meta,
             **meta,
         }
         PREVIEW_CACHE.set(cache_key, payload)
@@ -208,8 +224,6 @@ async def process_enhance(
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     except Exception as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
-
-
 
 
 @app.post("/process/batch")
@@ -223,6 +237,7 @@ async def process_batch(
     limit: int = Form(50),
     pro_safe: bool = Form(True),
     use_onnx_sky: bool = Form(False),
+    use_a6000_profile: bool = Form(False),
 ) -> dict[str, Any]:
     try:
         result = process_batch_folder(
@@ -235,12 +250,14 @@ async def process_batch(
             limit=limit,
             pro_safe=pro_safe,
             use_onnx_sky=use_onnx_sky,
+            use_a6000_profile=use_a6000_profile,
         )
         return {"ok": True, **result}
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     except Exception as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
+
 
 @app.post("/process/export")
 async def process_export(
@@ -252,6 +269,7 @@ async def process_export(
     fmt: str = Form("jpeg"),
     use_onnx_sky: bool = Form(False),
     pro_safe: bool = Form(True),
+    use_a6000_profile: bool = Form(False),
 ) -> Response:
     suffix = Path(file.filename or "upload.jpg").suffix or ".jpg"
     try:
@@ -260,6 +278,7 @@ async def process_export(
             tmp.write(data)
             tmp.flush()
             rgb = load_rgb(tmp.name)
+            rgb, _prep = _prepare_rgb(tmp.name, rgb, use_a6000_profile=use_a6000_profile)
             enhanced, _meta = run_enhance_with_look(
                 rgb,
                 strength=strength,
