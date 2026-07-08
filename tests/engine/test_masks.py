@@ -32,3 +32,21 @@ def test_skin_protect_blends_toward_original() -> None:
     diff_enh = float(np.abs(enhanced - rgb).mean())
     diff_out = float(np.abs(out - rgb).mean())
     assert diff_out < diff_enh
+
+
+from auraforge_engine.masks import apply_subject_lightness, subject_mask
+
+
+def test_subject_mask_nonzero_on_portrait() -> None:
+    rgb = _skin_rgb()
+    skin = skin_soft_mask(rgb)
+    subj = subject_mask(rgb, skin)
+    assert float(subj.max()) > 0.2
+
+
+def test_subject_lightness_lifts_masked_area() -> None:
+    rgb = np.full((32, 32, 3), 0.3, dtype=np.float32)
+    mask = np.zeros((32, 32), dtype=np.float32)
+    mask[10:22, 10:22] = 1.0
+    out = apply_subject_lightness(rgb, mask, amount=0.15)
+    assert float(out[15, 15].mean()) > float(rgb[15, 15].mean())
