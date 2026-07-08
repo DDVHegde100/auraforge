@@ -19,3 +19,16 @@ def test_skin_soft_mask_hits_face_region() -> None:
     rgb = _skin_rgb()
     mask = skin_soft_mask(rgb)
     assert float(mask[30:45, 40:60].mean()) > float(mask.mean())
+
+
+from auraforge_engine.masks import apply_skin_protect, skin_soft_mask
+
+
+def test_skin_protect_blends_toward_original() -> None:
+    rgb = _skin_rgb()
+    enhanced = np.clip(rgb * 1.4, 0.0, 1.0)
+    skin = skin_soft_mask(rgb)
+    out = apply_skin_protect(enhanced, rgb, skin, strength=0.8)
+    diff_enh = float(np.abs(enhanced - rgb).mean())
+    diff_out = float(np.abs(out - rgb).mean())
+    assert diff_out < diff_enh
