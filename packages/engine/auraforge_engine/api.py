@@ -13,7 +13,8 @@ from fastapi.responses import Response
 from auraforge_engine import __version__
 from auraforge_engine.analysis import analyze, analyze_summary
 from auraforge_engine.grades.loader import load_grades
-from auraforge_engine.io import downscale, load_rgb, rgb_to_data_url, rgb_to_jpeg_bytes, rgb_to_tiff16_bytes
+from auraforge_engine.io import downscale
+from auraforge_engine.io.preview_cache import PREVIEW_CACHE, load_rgb, rgb_to_data_url, rgb_to_jpeg_bytes, rgb_to_tiff16_bytes
 from auraforge_engine.masks.debug import render_mask_overlay
 from auraforge_engine.masks.feather import feather_mask
 from auraforge_engine.masks.onnx_sky import resolve_sky_mask
@@ -36,6 +37,11 @@ app.add_middleware(
 @app.get("/health")
 def health() -> dict:
     return {"ok": True, "engine": __version__, "name": "auraforge"}
+
+
+@app.get("/cache/stats")
+def cache_stats() -> dict:
+    return {"ok": True, **PREVIEW_CACHE.stats.to_dict()}
 
 
 @app.get("/looks")
@@ -157,6 +163,20 @@ async def process_enhance(
     suffix = Path(file.filename or "upload.jpg").suffix or ".jpg"
     try:
         data = await file.read()
+        cache_key = PREVIEW_CACHE.make_key(
+            data,
+            strength=strength,
+            mode=mode,
+            grade_id=grade_id,
+            signature_id=signature_id,
+            max_size=max_size,
+            use_onnx_sky=use_onnx_sky,
+            pro_safe=pro_safe,
+        )
+        cached = PREVIEW_CACHE.get(cache_key)
+        if cached is not None:
+            return {**cached, "cached": True}
+
         with tempfile.NamedTemporaryFile(suffix=suffix, delete=True) as tmp:
             tmp.write(data)
             tmp.flush()
@@ -173,14 +193,17 @@ async def process_enhance(
             preview = downscale(enhanced, max_size=max_size)
             url = rgb_to_data_url(preview)
         h, w = preview.shape[:2]
-        return {
+        payload = {
             "ok": True,
             "width": w,
             "height": h,
             "preview": url,
             "name": file.filename,
+            "cached": False,
             **meta,
         }
+        PREVIEW_CACHE.set(cache_key, payload)
+        return payload
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     except Exception as exc:
