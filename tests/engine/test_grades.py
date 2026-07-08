@@ -45,3 +45,8 @@ def test_food_grades() -> None:
 def test_landscape_grades() -> None:
     assert get_look("grade_land_vivid_sky") is not None
     assert get_look("grade_land_pastel_travel") is not None
+
+
+def test_street_wedding_grades() -> None:
+    assert get_look("grade_street_night_neon") is not None
+    assert get_look("grade_event_sparkle") is not None

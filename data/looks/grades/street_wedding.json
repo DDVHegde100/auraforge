@@ -1,0 +1,109 @@
+[
+  {
+    "id": "grade_street_chrome",
+    "name": "chrome",
+    "kind": "grade",
+    "tags": ["street", "urban"],
+    "stack": {
+      "develop": {"contrast": 0.14, "clarity": 0.12, "warmth": -0.08},
+      "multiscale_detail": {"strength": 0.12}
+    },
+    "notes": "city grit chrome"
+  },
+  {
+    "id": "grade_street_night_neon",
+    "name": "night neon",
+    "kind": "grade",
+    "tags": ["street", "neon", "night"],
+    "stack": {
+      "develop": {"contrast": 0.12, "saturation": 0.10, "vignette": 0.08},
+      "split_tone": {"strength": 0.14, "shadow_rgb": [0.05, 0.02, 0.12], "highlight_rgb": [0.95, 0.55, 0.95]},
+      "channel_offset_fringe": {"strength": 0.10}
+    },
+    "notes": "nightlife neon street"
+  },
+  {
+    "id": "grade_street_rain",
+    "name": "rain",
+    "kind": "grade",
+    "tags": ["street", "cool"],
+    "stack": {
+      "develop": {"warmth": -0.12, "contrast": 0.08, "dehaze": 0.06},
+      "split_tone": {"strength": 0.10, "shadow_rgb": [0.03, 0.05, 0.10]}
+    },
+    "notes": "cool wet asphalt rain"
+  },
+  {
+    "id": "grade_street_film80s",
+    "name": "film 80s",
+    "kind": "grade",
+    "tags": ["street", "film", "nostalgia"],
+    "stack": {
+      "develop": {"contrast": 0.04, "saturation": 0.06, "shadow_lift": 0.06},
+      "film_grain": {"amount": 0.07, "size": 1.4, "seed": 80},
+      "split_tone": {"strength": 0.08, "highlight_rgb": [1.0, 0.92, 0.78]}
+    },
+    "notes": "80s nostalgia street film"
+  },
+  {
+    "id": "grade_street_bleach",
+    "name": "bleach bypass",
+    "kind": "grade",
+    "tags": ["street", "desat"],
+    "stack": {
+      "develop": {"saturation": -0.25, "contrast": 0.16, "clarity": 0.10},
+      "split_tone": {"strength": 0.12, "shadow_rgb": [0.06, 0.06, 0.06]}
+    },
+    "notes": "harsh desat bleach bypass"
+  },
+  {
+    "id": "grade_event_romantic",
+    "name": "romantic",
+    "kind": "grade",
+    "tags": ["wedding", "event", "soft"],
+    "skin_protect": true,
+    "stack": {
+      "develop": {"warmth": 0.14, "vibrance": 0.08, "shadow_lift": 0.08},
+      "soft_haze": {"lift": 0.03, "desaturate": 0.05, "warmth": 0.10},
+      "highlight_bloom": {"intensity": 0.14, "threshold": 0.72}
+    },
+    "notes": "soft pink-warm romantic event"
+  },
+  {
+    "id": "grade_event_champagne",
+    "name": "champagne",
+    "kind": "grade",
+    "tags": ["wedding", "event", "gold"],
+    "skin_protect": true,
+    "stack": {
+      "develop": {"warmth": 0.20, "highlight_recovery": 0.12},
+      "floating_light_gradient": {"intensity": 0.16, "warmth": 0.18},
+      "highlight_bloom": {"intensity": 0.16, "threshold": 0.68}
+    },
+    "notes": "luminous gold champagne"
+  },
+  {
+    "id": "grade_event_documentary",
+    "name": "documentary",
+    "kind": "grade",
+    "tags": ["wedding", "event", "neutral"],
+    "skin_protect": true,
+    "stack": {
+      "develop": {"contrast": 0.02, "vibrance": 0.04, "clarity": 0.04}
+    },
+    "notes": "honest flat contrast event doc"
+  },
+  {
+    "id": "grade_event_sparkle",
+    "name": "sparkle",
+    "kind": "grade",
+    "tags": ["wedding", "event", "highlights"],
+    "skin_protect": true,
+    "stack": {
+      "develop": {"highlight_recovery": 0.08, "vibrance": 0.06},
+      "highlight_bloom": {"intensity": 0.22, "threshold": 0.65, "blur_sigma": 14},
+      "film_grain": {"amount": 0.03, "seed": 22}
+    },
+    "notes": "highlight glitter sparkle"
+  }
+]
