@@ -5,6 +5,7 @@ from __future__ import annotations
 import numpy as np
 
 from auraforge_engine.effects import (
+    channel_offset_fringe,
     false_color_thermal,
     film_grain,
     floating_light_gradient,
@@ -88,3 +89,11 @@ def test_false_color_thermal_remaps_luma() -> None:
     out = false_color_thermal(rgb, strength=1.0)
     assert float(out[:, 0, 2].mean()) > float(out[:, 24, 2].mean())
     assert float(out[:, 24, 0].mean()) > float(out[:, 0, 0].mean())
+
+
+def test_channel_offset_fringe_shifts_channels() -> None:
+    rgb = np.zeros((24, 24, 3), dtype=np.float32)
+    rgb[8:16, 8:16, 0] = 0.9
+    rgb[8:16, 8:16, 2] = 0.9
+    out = channel_offset_fringe(rgb, strength=0.5, red_offset=(2, 0), blue_offset=(-2, 0))
+    assert not np.allclose(out, rgb)

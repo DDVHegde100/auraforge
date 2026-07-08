@@ -1,3 +1,4 @@
+from auraforge_engine.effects.fringe import channel_offset_fringe
 from auraforge_engine.effects.bloom import highlight_bloom
 from auraforge_engine.effects.detail import multiscale_detail
 from auraforge_engine.effects.false_color import false_color_thermal
@@ -9,6 +10,7 @@ from auraforge_engine.effects.rim_light import rim_light
 from auraforge_engine.effects.split_tone import split_tone
 
 __all__ = [
+    "channel_offset_fringe",
     "false_color_thermal",
     "film_grain",
     "floating_light_gradient",
