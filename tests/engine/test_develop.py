@@ -41,3 +41,9 @@ def test_clarity_adds_detail() -> None:
     rgb[12:20, 12:20] = 0.2
     out = apply_clarity(rgb, 0.4)
     assert float(out.std()) >= float(rgb.std())
+
+
+def test_warmth_shifts_red() -> None:
+    rgb = np.full((8, 8, 3), 0.4, dtype=np.float32)
+    out = apply_warmth_tint(rgb, warmth=0.5)
+    assert float(out[..., 0].mean()) > float(rgb[..., 0].mean())
