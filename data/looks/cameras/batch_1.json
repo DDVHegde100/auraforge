@@ -35,18 +35,10 @@
     "tags": ["camera", "fuji", "film", "color"],
     "notes": "fuji color science — emerald shadows, warm highlights",
     "stack": {
-      "color_matrix": {
-        "matrix": [[1.05, -0.04, 0.0], [-0.02, 1.02, 0.04], [0.0, 0.06, 0.96]],
-        "offset": [0.0, 0.01, 0.0],
-        "strength": 0.85
-      },
-      "split_tone": {
-        "shadow_rgb": [0.02, 0.08, 0.06],
-        "highlight_rgb": [1.0, 0.94, 0.82],
-        "strength": 0.22
-      },
-      "develop": {"contrast": 0.06, "vibrance": 0.10},
-      "film_grain": {"amount": 0.05, "size": 1.0, "seed": 21}
+      "film_stock": {"stock": "pro400h", "strength": 1.0},
+      "lens_profile": {"character": "standard", "softness": 0.04, "vignette": 0.06, "ca_strength": 0.06},
+      "develop": {"contrast": 0.04, "vibrance": 0.06},
+      "grain_pro": {"amount": 0.05, "iso": 400, "color": 0.18, "size": 1.0, "seed": 21}
     }
   },
   {
