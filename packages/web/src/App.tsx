@@ -54,6 +54,7 @@ export default function App() {
   const [analysis, setAnalysis] = useState<AnalysisSummary | null>(null);
   const [strength, setStrength] = useState(50);
   const [mode, setMode] = useState<EnhanceMode>("natural");
+  const [showMasks, setShowMasks] = useState(false);
   const beforeRef = useRef<HTMLCanvasElement | null>(null);
   const afterRef = useRef<HTMLCanvasElement | null>(null);
   const fileRef = useRef<File | null>(null);
@@ -71,10 +72,35 @@ export default function App() {
       .catch(() => setStatus("api offline — run ./dev.sh"));
   }, []);
 
+  const paintAfter = useCallback(
+    async (dataUrl: string) => {
+      const after = afterRef.current;
+      if (after) {
+        await paintPreview(after, dataUrl);
+        setHasImage(true);
+      }
+    },
+    [],
+  );
+
+  const loadMaskOverlay = useCallback(async (file: File) => {
+    const body = new FormData();
+    body.append("file", file);
+    const res = await fetch("/api/process/masks", { method: "POST", body });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.detail || "mask preview failed");
+    await paintAfter(data.preview);
+  }, [paintAfter]);
+
   const runEnhance = useCallback(
-    async (file: File, nextStrength: number, nextMode: EnhanceMode) => {
+    async (file: File, nextStrength: number, nextMode: EnhanceMode, masks: boolean) => {
       setBusy(true);
       try {
+        if (masks) {
+          await loadMaskOverlay(file);
+          setStatus("mask debug · cyan sky · magenta skin · yellow subject");
+          return;
+        }
         const body = new FormData();
         body.append("file", file);
         body.append("strength", String(nextStrength));
@@ -82,16 +108,13 @@ export default function App() {
         const res = await fetch("/api/process/enhance", { method: "POST", body });
         const data = await res.json();
         if (!res.ok) throw new Error(data.detail || "enhance failed");
-        const after = afterRef.current;
-        if (after) {
-          await paintPreview(after, data.preview);
-          setHasImage(true);
-        }
+        await paintAfter(data.preview);
         setAnalysis(data.analysis ?? null);
         const exp = data.analysis?.exposure_class ?? "?";
         const content = data.analysis?.content_class ?? "?";
+        const sky = data.masks?.sky_applied ? "sky" : "—";
         setStatus(
-          `enhance ${nextStrength}% · ${nextMode} · ${content} · ${exp}`,
+          `enhance ${nextStrength}% · ${nextMode} · ${content} · ${exp} · ${sky}`,
         );
       } catch (err) {
         setStatus(err instanceof Error ? err.message : "enhance failed");
@@ -99,16 +122,16 @@ export default function App() {
         setBusy(false);
       }
     },
-    [],
+    [loadMaskOverlay, paintAfter],
   );
 
   const scheduleEnhance = useCallback(
-    (nextStrength: number, nextMode: EnhanceMode) => {
+    (nextStrength: number, nextMode: EnhanceMode, masks: boolean) => {
       const file = fileRef.current;
       if (!file) return;
       if (debounceRef.current) window.clearTimeout(debounceRef.current);
       debounceRef.current = window.setTimeout(() => {
-        void runEnhance(file, nextStrength, nextMode);
+        void runEnhance(file, nextStrength, nextMode, masks);
       }, 280);
     },
     [runEnhance],
@@ -131,7 +154,7 @@ export default function App() {
           setHasImage(true);
         }
         setAnalysis(data.analysis ?? null);
-        await runEnhance(file, strength, mode);
+        await runEnhance(file, strength, mode, showMasks);
       } catch (err) {
         setStatus(err instanceof Error ? err.message : "preview failed");
         setHasImage(false);
@@ -140,7 +163,7 @@ export default function App() {
         setBusy(false);
       }
     },
-    [mode, runEnhance, strength],
+    [mode, runEnhance, showMasks, strength],
   );
 
   const onDrop = (e: React.DragEvent) => {
@@ -197,7 +220,7 @@ export default function App() {
               onChange={(e) => {
                 const v = Number(e.target.value);
                 setStrength(v);
-                scheduleEnhance(v, mode);
+                scheduleEnhance(v, mode, showMasks);
               }}
             />
             <span className="slider-value">{strength}</span>
@@ -210,13 +233,26 @@ export default function App() {
                 className={m === mode ? "mode active" : "mode"}
                 onClick={() => {
                   setMode(m);
-                  scheduleEnhance(strength, m);
+                  scheduleEnhance(strength, m, showMasks);
                 }}
               >
                 {m}
               </button>
             ))}
           </div>
+          <label className="mask-toggle">
+            <input
+              type="checkbox"
+              checked={showMasks}
+              onChange={(e) => {
+                const on = e.target.checked;
+                setShowMasks(on);
+                const file = fileRef.current;
+                if (file) scheduleEnhance(strength, mode, on);
+              }}
+            />
+            show mask debug overlay
+          </label>
         </section>
       )}
 

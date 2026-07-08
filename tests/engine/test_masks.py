@@ -50,3 +50,21 @@ def test_subject_lightness_lifts_masked_area() -> None:
     mask[10:22, 10:22] = 1.0
     out = apply_subject_lightness(rgb, mask, amount=0.15)
     assert float(out[15, 15].mean()) > float(rgb[15, 15].mean())
+
+
+from auraforge_engine.masks import render_mask_overlay, sky_mask
+
+
+def _sky_rgb(h: int = 64, w: int = 96) -> np.ndarray:
+    rgb = np.zeros((h, w, 3), dtype=np.float32)
+    rgb[: h // 2, :, 0] = 0.35
+    rgb[: h // 2, :, 1] = 0.55
+    rgb[: h // 2, :, 2] = 0.95
+    rgb[h // 2 :, :, :] = 0.25
+    return rgb
+
+
+def test_render_mask_overlay_changes_pixels() -> None:
+    rgb = _sky_rgb()
+    out = render_mask_overlay(rgb, sky=sky_mask(rgb))
+    assert float(out.mean()) != float(rgb.mean())

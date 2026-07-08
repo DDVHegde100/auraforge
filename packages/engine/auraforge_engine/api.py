@@ -12,6 +12,11 @@ from fastapi.middleware.cors import CORSMiddleware
 from auraforge_engine import __version__
 from auraforge_engine.analysis import analyze, analyze_summary
 from auraforge_engine.enhance.run import run_enhance
+from auraforge_engine.masks.debug import render_mask_overlay
+from auraforge_engine.masks.feather import feather_mask
+from auraforge_engine.masks.skin import skin_soft_mask
+from auraforge_engine.masks.sky import sky_mask
+from auraforge_engine.masks.subject import subject_mask
 from auraforge_engine.io import downscale, load_rgb, rgb_to_data_url
 from auraforge_engine.registry import load_looks
 
@@ -72,6 +77,40 @@ async def process_analyze(file: UploadFile = File(...)) -> dict[str, Any]:
             tmp.flush()
             rgb = load_rgb(tmp.name)
             return {"ok": True, "name": file.filename, "analysis": analyze(rgb)}
+    except Exception as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+
+@app.post("/process/masks")
+async def process_masks(
+    file: UploadFile = File(...),
+    max_size: int = Form(1600),
+) -> dict[str, Any]:
+    suffix = Path(file.filename or "upload.jpg").suffix or ".jpg"
+    try:
+        data = await file.read()
+        with tempfile.NamedTemporaryFile(suffix=suffix, delete=True) as tmp:
+            tmp.write(data)
+            tmp.flush()
+            rgb = load_rgb(tmp.name)
+            sky = feather_mask(sky_mask(rgb), sigma=8.0)
+            skin = skin_soft_mask(rgb)
+            subject = subject_mask(rgb, skin)
+            overlay = render_mask_overlay(rgb, sky=sky, skin=skin, subject=subject)
+            preview = downscale(overlay, max_size=max_size)
+            url = rgb_to_data_url(preview)
+        h, w = preview.shape[:2]
+        return {
+            "ok": True,
+            "width": w,
+            "height": h,
+            "preview": url,
+            "name": file.filename,
+            "sky_mean": float(sky.mean()),
+            "skin_mean": float(skin.mean()),
+            "subject_mean": float(subject.mean()),
+        }
     except Exception as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 

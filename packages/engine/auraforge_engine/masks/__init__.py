@@ -4,11 +4,14 @@ from auraforge_engine.masks.sky import sky_mask
 from auraforge_engine.masks.sky_tone import apply_sky_tone
 
 from auraforge_engine.masks.skin_protect import apply_skin_protect
+from auraforge_engine.masks.debug import render_mask_overlay
 from auraforge_engine.masks.subject import apply_subject_lightness, subject_mask
 
 __all__ = ["apply_skin_protect",
+    "render_mask_overlay",
     "apply_subject_lightness",
     "subject_mask",
     "apply_sky_tone", "feather_mask", "skin_soft_mask", "sky_mask"]
 from auraforge_engine.masks.skin_protect import apply_skin_protect
+from auraforge_engine.masks.debug import render_mask_overlay
 from auraforge_engine.masks.subject import apply_subject_lightness, subject_mask
