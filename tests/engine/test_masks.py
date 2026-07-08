@@ -31,3 +31,13 @@ def test_feather_softens_edges() -> None:
     soft = feather_mask(hard, sigma=6.0)
     assert float(soft[15, 16]) > 0.0
     assert float(soft[15, 16]) < 1.0
+
+
+from auraforge_engine.masks import apply_sky_tone
+
+
+def test_sky_tone_changes_sky_region() -> None:
+    rgb = _sky_rgb()
+    mask = sky_mask(rgb)
+    out = apply_sky_tone(rgb, mask, dehaze=0.25, vibrance=0.2)
+    assert float(out[:16, :, :].mean()) != float(rgb[:16, :, :].mean())
