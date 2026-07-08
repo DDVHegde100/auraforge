@@ -1,10 +1,10 @@
-"""Orton glow tests."""
+"""Creative effects tests."""
 
 from __future__ import annotations
 
 import numpy as np
 
-from auraforge_engine.effects import orton_glow
+from auraforge_engine.effects import highlight_bloom, orton_glow
 
 
 def test_orton_glow_brightens_midtones() -> None:
@@ -17,3 +17,10 @@ def test_orton_zero_opacity_is_identity() -> None:
     rgb = np.random.default_rng(1).random((16, 16, 3)).astype(np.float32)
     out = orton_glow(rgb, opacity=0.0)
     assert np.allclose(out, rgb)
+
+
+def test_highlight_bloom_lifts_bright_areas() -> None:
+    rgb = np.zeros((32, 32, 3), dtype=np.float32)
+    rgb[10:20, 10:20] = 0.95
+    out = highlight_bloom(rgb, intensity=0.4)
+    assert float(out[15, 15].mean()) > float(rgb[15, 15].mean())
