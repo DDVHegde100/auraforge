@@ -78,6 +78,9 @@ export default function App() {
   const [gradeTag, setGradeTag] = useState("all");
   const [selectedGrade, setSelectedGrade] = useState<string | null>(null);
   const [selectedSignature, setSelectedSignature] = useState<string | null>(null);
+  const [beforeUrl, setBeforeUrl] = useState<string | null>(null);
+  const [afterUrl, setAfterUrl] = useState<string | null>(null);
+  const [scrub, setScrub] = useState(50);
   const beforeRef = useRef<HTMLCanvasElement | null>(null);
   const fileRef = useRef<File | null>(null);
   const debounceRef = useRef<number | null>(null);
@@ -122,6 +125,7 @@ export default function App() {
           const res = await fetch("/api/process/masks", { method: "POST", body });
           const data = await res.json();
           if (!res.ok) throw new Error(data.detail || "mask preview failed");
+          setAfterUrl(data.preview);
           setStatus("mask debug · cyan sky · magenta skin · yellow subject");
           return;
         }
@@ -135,7 +139,7 @@ export default function App() {
         const res = await fetch("/api/process/enhance", { method: "POST", body });
         const data = await res.json();
         if (!res.ok) throw new Error(data.detail || "enhance failed");
-        await paintAfter(data.preview);
+        setAfterUrl(data.preview);
         setAnalysis(data.analysis ?? null);
         const sig = data.signature_id ? String(data.signature_id).replace("sig_", "") : "—";
         const clamped = data.signature_clamped ? " · clamped" : "";
@@ -186,11 +190,9 @@ export default function App() {
         const res = await fetch("/api/process/preview", { method: "POST", body });
         const data = await res.json();
         if (!res.ok) throw new Error(data.detail || "preview failed");
+        setBeforeUrl(data.preview);
         const before = beforeRef.current;
-        if (before) {
-          await paintPreview(before, data.preview);
-          setHasImage(true);
-        }
+        if (before) await paintPreview(before, data.preview);
         setHasImage(true);
         setAnalysis(data.analysis ?? null);
         const snap = currentSnap();
@@ -368,6 +370,30 @@ export default function App() {
         </section>
       )}
 
+      {hasImage && beforeUrl && afterUrl && (
+        <section className="compare-section">
+          <p className="label">before / after</p>
+          <div className="compare-wrap">
+            <img src={afterUrl} alt="after" className="compare-img" />
+            <img
+              src={beforeUrl}
+              alt="before"
+              className="compare-img compare-before"
+              style={{ clipPath: `inset(0 ${100 - scrub}% 0 0)` }}
+            />
+          </div>
+          <label className="slider-label scrub-label">
+            scrub
+            <input
+              type="range"
+              min={0}
+              max={100}
+              value={scrub}
+              onChange={(e) => setScrub(Number(e.target.value))}
+            />
+            <span className="slider-value">{scrub}</span>
+          </label>
+        </section>
       )}
 
       <canvas ref={beforeRef} className="hidden-canvas" aria-hidden />
