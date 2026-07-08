@@ -75,3 +75,13 @@ def test_film_grain_changes_pixels() -> None:
     rgb = np.full((24, 24, 3), 0.5, dtype=np.float32)
     out = film_grain(rgb, amount=0.12, seed=7)
     assert not np.allclose(out, rgb)
+
+
+from auraforge_engine.effects import split_tone
+
+
+def test_split_tone_shifts_shadows() -> None:
+    rgb = np.zeros((16, 16, 3), dtype=np.float32)
+    rgb[..., 2] = 0.15
+    out = split_tone(rgb, strength=0.5)
+    assert float(out[..., 2].mean()) != float(rgb[..., 2].mean())

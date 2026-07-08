@@ -5,6 +5,7 @@ from auraforge_engine.effects.haze import soft_haze
 from auraforge_engine.effects.light_gradient import floating_light_gradient
 from auraforge_engine.effects.orton import orton_glow
 from auraforge_engine.effects.rim_light import rim_light
+from auraforge_engine.effects.split_tone import split_tone
 
 __all__ = [
     "film_grain",
@@ -14,4 +15,5 @@ __all__ = [
     "orton_glow",
     "rim_light",
     "soft_haze",
+    "split_tone",
 ]
