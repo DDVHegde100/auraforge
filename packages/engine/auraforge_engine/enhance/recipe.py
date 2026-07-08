@@ -41,17 +41,17 @@ def recipe_from_analysis(analysis: dict[str, Any]) -> DevelopRecipe:
     recipe = DevelopRecipe()
 
     if exposure == "under":
-        recipe.exposure_stops = 0.35
-        recipe.shadow_lift = 0.18
+        recipe.exposure_stops = 0.48
+        recipe.shadow_lift = 0.24
     elif exposure == "over":
-        recipe.exposure_stops = -0.25
-        recipe.highlight_recovery = 0.28
+        recipe.exposure_stops = -0.30
+        recipe.highlight_recovery = 0.34
     elif exposure == "flat":
-        recipe.contrast = 0.10
-        recipe.clarity = 0.08
+        recipe.contrast = 0.14
+        recipe.clarity = 0.12
     elif exposure == "contrasty":
-        recipe.shadow_lift = 0.08
-        recipe.highlight_recovery = 0.15
+        recipe.shadow_lift = 0.10
+        recipe.highlight_recovery = 0.20
 
     if noise > 0.25:
         recipe.denoise = min(0.65, 0.25 + noise * 0.55)
@@ -61,21 +61,21 @@ def recipe_from_analysis(analysis: dict[str, Any]) -> DevelopRecipe:
         recipe.clarity += 0.05
 
     if content == "portrait":
-        recipe.clarity = min(recipe.clarity, 0.10)
-        recipe.vibrance = 0.08
-        recipe.shadow_lift = max(recipe.shadow_lift, 0.10)
-        recipe.vignette = 0.12
+        recipe.clarity = min(recipe.clarity + 0.04, 0.14)
+        recipe.vibrance = 0.12
+        recipe.shadow_lift = max(recipe.shadow_lift, 0.14)
+        recipe.vignette = 0.16
     elif content == "landscape":
-        recipe.dehaze = 0.10 + sky * 0.12
-        recipe.clarity = max(recipe.clarity, 0.12)
-        recipe.vibrance = 0.10
-    elif content == "food":
-        recipe.warmth = 0.35
-        recipe.saturation = 0.12
+        recipe.dehaze = 0.14 + sky * 0.18
+        recipe.clarity = max(recipe.clarity, 0.18)
         recipe.vibrance = 0.14
+    elif content == "food":
+        recipe.warmth = 0.42
+        recipe.saturation = 0.16
+        recipe.vibrance = 0.18
     else:
-        recipe.vibrance = 0.06
-        recipe.saturation = 0.04
+        recipe.vibrance = 0.10
+        recipe.saturation = 0.06
 
     if sky > 0.3:
         recipe.dehaze = max(recipe.dehaze, 0.08)

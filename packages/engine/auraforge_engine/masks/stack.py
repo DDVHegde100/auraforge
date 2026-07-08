@@ -18,6 +18,7 @@ def apply_mask_stack(
     analysis: dict,
     *,
     use_onnx_sky: bool = False,
+    light_boost: float = 1.0,
 ) -> tuple[np.ndarray, dict]:
     """Sky pop + skin protect + gentle subject lift."""
     meta: dict = {"sky_applied": False, "skin_protect_applied": False, "subject_lift_applied": False}
@@ -26,13 +27,13 @@ def apply_mask_stack(
     if sky_info.get("sky_detected") or float(sky_info.get("sky_score", 0.0)) >= 0.18:
         sky_m, source = resolve_sky_mask(rgb, use_onnx=use_onnx_sky)
         sky_m = feather_mask(sky_m, sigma=10.0)
-        strength = min(1.0, 0.55 + float(sky_info.get("sky_score", 0.0)))
+        strength = min(1.35, (0.65 + float(sky_info.get("sky_score", 0.0))) * light_boost)
         enhanced = apply_sky_tone(
             enhanced,
             sky_m,
-            dehaze=0.14 * strength,
-            vibrance=0.10 * strength,
-            warmth=-0.05 * strength,
+            dehaze=0.18 * strength,
+            vibrance=0.14 * strength,
+            warmth=-0.06 * strength,
         )
         meta["sky_applied"] = True
         meta["sky_mask_source"] = source
@@ -47,7 +48,7 @@ def apply_mask_stack(
     content = analysis.get("content", {}).get("content_class", "general")
     if content == "portrait" or float(skin_info.get("skin_score", 0.0)) >= 0.10:
         subj = subject_mask(rgb, skin_m)
-        enhanced = apply_subject_lightness(enhanced, subj, amount=0.06)
+        enhanced = apply_subject_lightness(enhanced, subj, amount=0.09 * light_boost)
         meta["subject_lift_applied"] = True
 
     return enhanced, meta
