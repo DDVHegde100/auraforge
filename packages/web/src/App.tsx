@@ -84,6 +84,7 @@ export default function App() {
   const [exportFormat, setExportFormat] = useState<ExportFormat>("jpeg");
   const [history, setHistory] = useState<HistorySnap[]>([]);
   const beforeRef = useRef<HTMLCanvasElement | null>(null);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
   const fileRef = useRef<File | null>(null);
 
   const [batchFolder, setBatchFolder] = useState("");
@@ -296,6 +297,31 @@ export default function App() {
     }
   }, [batchFolder, batchOut, currentSnap]);
 
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const mod = e.metaKey || e.ctrlKey;
+      if (mod && e.key === "z") {
+        e.preventDefault();
+        undo();
+      }
+      if (mod && e.key === "e") {
+        e.preventDefault();
+        if (hasImage) void exportImage();
+      }
+      if (mod && e.key === "o") {
+        e.preventDefault();
+        fileInputRef.current?.click();
+      }
+      if (!mod && hasImage && beforeUrl && afterUrl) {
+        if (e.key === "ArrowLeft") setScrub((s) => Math.max(0, s - 5));
+        if (e.key === "ArrowRight") setScrub((s) => Math.min(100, s + 5));
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [afterUrl, beforeUrl, exportImage, hasImage, undo]);
+
   const onDrop = (e: React.DragEvent) => {
     e.preventDefault();
     setDragOver(false);
@@ -324,6 +350,7 @@ export default function App() {
       <h1>auraforge</h1>
       <p className="tag">my version of luminar neo but free</p>
       <p className="muted">{status}</p>
+      <p className="muted shortcuts-hint">⌘Z undo · ⌘E export · ⌘O open · ←→ scrub</p>
       {lookCount !== null && <p className="muted">{lookCount} looks registered</p>}
 
       <div
@@ -341,6 +368,7 @@ export default function App() {
           <input
             type="file"
             accept="image/*,.arw,.dng,.nef,.cr2,.tif,.tiff"
+            ref={fileInputRef}
             hidden
             onChange={(e) => {
               const file = e.target.files?.[0];
