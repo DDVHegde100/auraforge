@@ -8,11 +8,12 @@ from typing import Any
 
 from fastapi import FastAPI, File, Form, HTTPException, Query, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import Response
 
 from auraforge_engine import __version__
 from auraforge_engine.analysis import analyze, analyze_summary
 from auraforge_engine.grades.loader import load_grades
-from auraforge_engine.io import downscale, load_rgb, rgb_to_data_url
+from auraforge_engine.io import downscale, load_rgb, rgb_to_data_url, rgb_to_jpeg_bytes, rgb_to_tiff16_bytes
 from auraforge_engine.masks.debug import render_mask_overlay
 from auraforge_engine.masks.feather import feather_mask
 from auraforge_engine.masks.onnx_sky import resolve_sky_mask
@@ -179,6 +180,52 @@ async def process_enhance(
             "name": file.filename,
             **meta,
         }
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except Exception as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@app.post("/process/export")
+async def process_export(
+    file: UploadFile = File(...),
+    strength: float = Form(50.0),
+    mode: str = Form("natural"),
+    grade_id: str = Form(""),
+    signature_id: str = Form(""),
+    fmt: str = Form("jpeg"),
+    use_onnx_sky: bool = Form(False),
+    pro_safe: bool = Form(True),
+) -> Response:
+    suffix = Path(file.filename or "upload.jpg").suffix or ".jpg"
+    try:
+        data = await file.read()
+        with tempfile.NamedTemporaryFile(suffix=suffix, delete=True) as tmp:
+            tmp.write(data)
+            tmp.flush()
+            rgb = load_rgb(tmp.name)
+            enhanced, _meta = run_enhance_with_look(
+                rgb,
+                strength=strength,
+                mode=mode,
+                grade_id=grade_id or None,
+                signature_id=signature_id or None,
+                use_onnx_sky=use_onnx_sky,
+                pro_safe=pro_safe,
+            )
+        if fmt.lower() in ("tiff", "tif", "tiff16"):
+            body = rgb_to_tiff16_bytes(enhanced)
+            return Response(
+                content=body,
+                media_type="image/tiff",
+                headers={"Content-Disposition": 'attachment; filename="auraforge.tif"'},
+            )
+        body = rgb_to_jpeg_bytes(enhanced, quality=92)
+        return Response(
+            content=body,
+            media_type="image/jpeg",
+            headers={"Content-Disposition": 'attachment; filename="auraforge.jpg"'},
+        )
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     except Exception as exc:

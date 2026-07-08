@@ -24,3 +24,12 @@ def export_tiff16(rgb: np.ndarray, path: Path | str) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     rgb16 = (np.clip(rgb, 0.0, 1.0) * 65535.0 + 0.5).astype(np.uint16)
     tifffile.imwrite(str(path), rgb16, photometric="rgb", compression="zlib")
+
+
+def rgb_to_tiff16_bytes(rgb: np.ndarray) -> bytes:
+    import io
+
+    rgb16 = (np.clip(rgb, 0.0, 1.0) * 65535.0 + 0.5).astype(np.uint16)
+    buf = io.BytesIO()
+    tifffile.imwrite(buf, rgb16, photometric="rgb", compression="zlib")
+    return buf.getvalue()

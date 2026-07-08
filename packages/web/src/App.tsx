@@ -428,6 +428,17 @@ export default function App() {
             <button type="button" className="tool-btn" disabled={history.length < 2} onClick={undo}>
               undo
             </button>
+            <select
+              className="export-select"
+              value={exportFormat}
+              onChange={(e) => setExportFormat(e.target.value as ExportFormat)}
+            >
+              <option value="jpeg">jpeg</option>
+              <option value="tiff">tiff 16-bit</option>
+            </select>
+            <button type="button" className="tool-btn primary" onClick={() => void exportImage()}>
+              export
+            </button>
           </div>
         </section>
       )}
