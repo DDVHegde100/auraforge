@@ -1,0 +1,64 @@
+[
+  {
+    "id": "grade_portrait_bw_silver",
+    "name": "bw silver",
+    "kind": "grade",
+    "tags": ["portrait", "mono"],
+    "skin_protect": true,
+    "stack": {
+      "develop": {"saturation": -0.85, "contrast": 0.08, "clarity": 0.06},
+      "split_tone": {"strength": 0.08, "shadow_rgb": [0.05, 0.05, 0.08], "highlight_rgb": [0.95, 0.95, 1.0]}
+    },
+    "notes": "classic silver mono portrait"
+  },
+  {
+    "id": "grade_portrait_bw_ink",
+    "name": "bw ink",
+    "kind": "grade",
+    "tags": ["portrait", "mono", "dramatic"],
+    "skin_protect": true,
+    "stack": {
+      "develop": {"saturation": -1.0, "contrast": 0.18, "clarity": 0.12, "vignette": 0.10},
+      "vignette": {"strength": 0.14, "feather": 0.72}
+    },
+    "notes": "high contrast ink mono"
+  },
+  {
+    "id": "grade_portrait_teal_safe",
+    "name": "teal-safe",
+    "kind": "grade",
+    "tags": ["portrait", "teal"],
+    "skin_protect": true,
+    "stack": {
+      "develop": {"warmth": 0.08, "vibrance": 0.06},
+      "split_tone": {"strength": 0.16, "shadow_rgb": [0.02, 0.08, 0.12], "highlight_rgb": [1.0, 0.90, 0.78], "balance": -0.05}
+    },
+    "notes": "teal environment with protected skin line"
+  },
+  {
+    "id": "grade_portrait_golden_hour",
+    "name": "golden hour",
+    "kind": "grade",
+    "tags": ["portrait", "warm"],
+    "skin_protect": true,
+    "stack": {
+      "develop": {"warmth": 0.28, "shadow_lift": 0.06, "highlight_recovery": 0.10},
+      "floating_light_gradient": {"intensity": 0.18, "warmth": 0.20, "angle_deg": 25},
+      "highlight_bloom": {"intensity": 0.18, "threshold": 0.70}
+    },
+    "notes": "warm key light portrait"
+  },
+  {
+    "id": "grade_portrait_moody_rembrandt",
+    "name": "rembrandt mood",
+    "kind": "grade",
+    "tags": ["portrait", "moody", "dramatic"],
+    "skin_protect": true,
+    "stack": {
+      "develop": {"contrast": 0.12, "shadow_lift": 0.04, "vignette": 0.12},
+      "split_tone": {"strength": 0.18, "shadow_rgb": [0.03, 0.02, 0.08], "balance": -0.15},
+      "vignette": {"strength": 0.22, "feather": 0.68}
+    },
+    "notes": "dark single-key rembrandt mood"
+  }
+]

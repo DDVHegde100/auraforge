@@ -29,3 +29,9 @@ def test_portrait_grades_1_5() -> None:
     assert get_look("grade_portrait_natural") is not None
     assert get_look("grade_portrait_matte_film") is not None
     assert len(load_grades_by_tag("portrait")) >= 5
+
+
+def test_portrait_grades_6_10() -> None:
+    assert get_look("grade_portrait_bw_ink") is not None
+    assert get_look("grade_portrait_moody_rembrandt") is not None
+    assert len(load_grades_by_tag("portrait")) >= 10
