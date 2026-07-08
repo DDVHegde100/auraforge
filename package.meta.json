@@ -1,0 +1,15 @@
+{
+  "name": "auraforge",
+  "version": "0.0.0",
+  "private": true,
+  "description": "planned separate public repo — local-first aesthetic photo studio",
+  "lookahead": {
+    "grades": 40,
+    "signatures": 20,
+    "target_commits_mvp": 100
+  },
+  "relation": {
+    "sibling": "a6000_enhancer",
+    "publish_as": "own GitHub repository (not nested under a6000 remote long-term)"
+  }
+}
