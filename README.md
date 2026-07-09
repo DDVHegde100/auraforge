@@ -54,3 +54,4 @@ pytest tests/engine -q
 ```
 
 100 tests passing.
+\n\n---\n\n**Author:** [Dhruv Hegde](https://github.com/DDVHegde100) · CS @ University of Michigan\n
